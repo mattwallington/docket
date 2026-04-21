@@ -1,6 +1,28 @@
 node_modules/
 dist/
+build/
+out/
+release/
 renderer/vendor/
 assets/icon.iconset/
+
+# Secrets / env
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.mobileprovision
+*.cer
+credentials.json
+secrets.json
+
+# Editor / OS
 .DS_Store
+.vscode/
+.idea/
+*.swp
+
+# Runtime logs
 *.log
+npm-debug.log*
