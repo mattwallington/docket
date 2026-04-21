@@ -86,7 +86,22 @@
       <div class="about-line"><span class="label">Version</span>${escapeHTML(v.version)}</div>
       <div class="about-line"><span class="label">Channel</span>${escapeHTML(v.channel)}</div>
       ${v.buildDate ? `<div class="about-line"><span class="label">Build date</span>${escapeHTML(v.buildDate)}</div>` : ''}
+      <div class="update-row">
+        <button type="button" id="check-updates" class="update-btn">Check for updates…</button>
+        <span id="update-status" class="update-status"></span>
+      </div>
     `;
+    const statusEl = document.getElementById('update-status');
+    document.getElementById('check-updates').addEventListener('click', async () => {
+      statusEl.textContent = 'Checking…';
+      const r = await window.docket.checkForUpdates();
+      if (!r.ok) { statusEl.textContent = 'Error: ' + r.error; return; }
+      if (!r.updateInfo || r.updateInfo.version === v.version) {
+        statusEl.textContent = 'Up to date.';
+      } else {
+        statusEl.textContent = `v${r.updateInfo.version} available`;
+      }
+    });
   }
 
   renderRoots();

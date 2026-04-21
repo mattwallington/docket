@@ -25,6 +25,7 @@ contextBridge.exposeInMainWorld('docket', {
   pickDirectory: () => ipcRenderer.invoke('docket:pickDirectory'),
   setActivePath: (absolutePath) => ipcRenderer.invoke('docket:setActivePath', absolutePath),
   getVersion: () => ipcRenderer.invoke('docket:getVersion'),
+  checkForUpdates: () => ipcRenderer.invoke('docket:checkForUpdates'),
   onFileChange: (cb) => {
     const listener = (_event, payload) => cb(payload);
     ipcRenderer.on('docket:file-change', listener);

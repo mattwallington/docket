@@ -1,6 +1,8 @@
-const { app, BrowserWindow, ipcMain, dialog, Menu, shell, screen } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, Menu, shell, screen, Notification } = require('electron');
+const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const fs = require('fs').promises;
+const fsSync = require('fs');
 const chokidar = require('chokidar');
 
 app.setName('Docket');
@@ -16,6 +18,35 @@ let fileIndex = new Map();  // rootId -> FileEntry[]
 let rootStatuses = new Map(); // rootId -> { capped, status }
 let currentActivePath = null;
 let cachedState = null;      // snapshot of state.json at startup (window placement)
+
+// ---- Build info (populated by release.sh at build time) ----
+const BUILD_INFO = (() => {
+  try {
+    const p = path.join(__dirname, 'build-info.json');
+    if (fsSync.existsSync(p)) return JSON.parse(fsSync.readFileSync(p, 'utf8'));
+  } catch {}
+  return { version: require('./package.json').version, channel: 'stable', buildDate: null };
+})();
+const IS_DEV_BUILD = BUILD_INFO.channel === 'dev';
+
+// ---- Single-instance lock (keyed per channel so dev+stable coexist) ----
+const SKIP_INSTANCE_LOCK = process.env.DOCKET_SECURITY_CHECK === '1'
+  || process.env.DOCKET_GOLDEN_PATH === '1'
+  || process.env.DOCKET_BUILD_ICON === '1';
+
+if (!SKIP_INSTANCE_LOCK) {
+  const gotLock = app.requestSingleInstanceLock({ channel: IS_DEV_BUILD ? 'dev' : 'stable' });
+  if (!gotLock) {
+    app.quit();
+  } else {
+    app.on('second-instance', () => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        if (mainWindow.isMinimized()) mainWindow.restore();
+        mainWindow.focus();
+      }
+    });
+  }
+}
 
 function withinAnyRoot(absolutePath, cfg) {
   const resolved = path.resolve(absolutePath);
@@ -153,7 +184,6 @@ async function runBuildIconAndExit() {
     const outDir = process.env.DOCKET_ICON_OUT;
     if (!outDir) throw new Error('DOCKET_ICON_OUT not set');
     const svgName = process.env.DOCKET_ICON_SVG || 'icon.svg';
-    const fsSync = require('fs');
     const svgPath = path.join(__dirname, 'assets', svgName);
     const svg = fsSync.readFileSync(svgPath, 'utf8');
     const html = '<!doctype html><html><head><style>html,body{margin:0;padding:0;width:1024px;height:1024px;background:transparent;}svg{display:block;width:100%;height:100%;}</style></head><body>' + svg + '</body></html>';
@@ -488,10 +518,68 @@ ipcMain.handle('docket:pickDirectory', async () => {
   return result.filePaths[0];
 });
 
-ipcMain.handle('docket:getVersion', async () => {
-  const pkg = require('./package.json');
-  return { version: pkg.version, channel: 'stable', buildDate: null };
+ipcMain.handle('docket:getVersion', async () => ({
+  version: BUILD_INFO.version,
+  channel: BUILD_INFO.channel,
+  buildDate: BUILD_INFO.buildDate
+}));
+
+ipcMain.handle('docket:checkForUpdates', async () => {
+  try {
+    const r = await autoUpdater.checkForUpdates();
+    return { ok: true, updateInfo: r ? r.updateInfo : null };
+  } catch (e) {
+    return { ok: false, error: e && e.message ? e.message : String(e) };
+  }
 });
+
+function setupAutoUpdater() {
+  autoUpdater.autoDownload = false;
+  autoUpdater.autoInstallOnAppQuit = false;
+  autoUpdater.allowPrerelease = IS_DEV_BUILD;
+
+  autoUpdater.on('update-available', (info) => {
+    dialog.showMessageBox({
+      type: 'info',
+      title: 'Update Available',
+      message: `Docket${IS_DEV_BUILD ? ' Dev' : ''} v${info.version} is available`,
+      detail: `You are currently running v${app.getVersion()}. Download now?`,
+      buttons: ['Download', 'Later'],
+      defaultId: 0
+    }).then((r) => {
+      if (r.response === 0) {
+        autoUpdater.downloadUpdate();
+        if (Notification.isSupported()) {
+          new Notification({ title: 'Docket', body: 'Downloading update in the background…' }).show();
+        }
+      }
+    });
+  });
+
+  autoUpdater.on('update-downloaded', (info) => {
+    dialog.showMessageBox({
+      type: 'info',
+      title: 'Update Ready',
+      message: `Docket v${info.version} has been downloaded`,
+      detail: 'Restart docket to install the update.',
+      buttons: ['Restart Now', 'Later'],
+      defaultId: 0
+    }).then((r) => {
+      if (r.response === 0) autoUpdater.quitAndInstall();
+    });
+  });
+
+  autoUpdater.on('error', (err) => {
+    console.error('auto-updater error:', err && err.message ? err.message : err);
+  });
+
+  // Only actually poll if this is a packaged build. In dev (electron .)
+  // electron-updater will throw because there's no update feed.
+  if (app.isPackaged) {
+    setTimeout(() => { autoUpdater.checkForUpdates().catch(() => {}); }, 5000);
+    setInterval(() => { autoUpdater.checkForUpdates().catch(() => {}); }, 4 * 60 * 60 * 1000);
+  }
+}
 
 ipcMain.handle('docket:openSettings', async () => { openSettingsDirectly(); });
 
@@ -512,6 +600,7 @@ app.whenReady().then(async () => {
   await restartWatcher();
   await buildAppMenu();
   createMainWindow();
+  setupAutoUpdater();
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createMainWindow();
