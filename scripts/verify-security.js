@@ -22,7 +22,8 @@ child.stdout.on('data', (c) => { stdout += c.toString(); });
 child.stderr.on('data', (c) => { stderr += c.toString(); });
 
 const timeout = setTimeout(() => {
-  child.kill('SIGKILL');
+  try { process.kill(-child.pid, 'SIGKILL'); } catch {}
+  try { child.kill('SIGKILL'); } catch {}
   fail('Timed out after 30s');
 }, 30000);
 
