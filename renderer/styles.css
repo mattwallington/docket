@@ -21,8 +21,8 @@ body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sa
 .sidebar-item-project { font-size: 11px; color: var(--muted); }
 .sidebar-item-desc { font-size: 11px; color: var(--muted); margin-top: 3px; line-height: 1.3; }
 .sidebar-item-stats { font-size: 11px; color: var(--muted); margin-top: 4px; }
-.main { flex: 1; padding: 24px 40px; min-width: 0; }
-.prose { max-width: 900px; }
+.main { flex: 1; padding: 28px 64px; min-width: 0; }
+.prose { max-width: 960px; }
 .top-bar { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
 .sidebar-toggle { background: var(--card); border: 1px solid var(--border); border-radius: 6px; color: var(--text); cursor: pointer; padding: 6px 10px; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; }
 .sidebar-toggle:hover { background: rgba(255,255,255,0.03); }
