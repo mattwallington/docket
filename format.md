@@ -1,22 +1,17 @@
 # docket — format spec
 
-Each checklist is a standard markdown file with a small YAML frontmatter block at the top, stored in `~/.docket/dashboards/`.
+Each checklist is a standard markdown file with a small YAML frontmatter block at the top, stored in a configured root. The default root is `~/.docket/projects/`; additional roots can be added in Preferences.
 
 ## Architecture
 
 ```
 ~/.docket/
-├── dashboards/                        # one .md per checklist
-│   ├── my-rollout.md
-│   └── my-migration.md
-└── dashboards.html                    # generated viewer
-
-<docket repo>/
-├── docket.py                          # generator
-└── format.md                          # this file
+├── docket.json                       # user config (roots, theme)
+├── state.json                        # recents, per-file view overrides
+└── projects/                         # default root; drop .md files here
 ```
 
-Run `python3 <docket repo>/docket.py` to regenerate the viewer.
+Docket is a native macOS Electron app — it watches each configured root live, so any edit in your editor shows up instantly.
 
 ## Frontmatter
 
@@ -64,7 +59,7 @@ Sub-headings become section labels. Useful for grouping related tasks.
 
 ```markdown
 - [ ] **4a. Existing provider + B2B invite (legacy format)**
-- [x] **5a. Both roles + B2B invite (legacy format)** — passed Apr 20 (matt+patient2)
+- [x] **5a. Both roles + B2B invite (legacy format)** — passed Apr 20
 ```
 
 The parser extracts:
@@ -87,7 +82,7 @@ Indented bullets below a task are valid markdown and ignored by the viewer (they
 
 ```markdown
 - [ ] **4a. Existing provider + B2B invite (legacy format)**
-  - URL: `?invitation_token=<UUID>` using `matt+provider1@reperiohealth.com`
+  - URL: `?invitation_token=<UUID>`
   - Expected: sign-in → ActivateRolePage → `POST /add-role`
   - Verify: `custom:customer_uuid` added
 ```
@@ -98,12 +93,8 @@ See [`examples/example-plan.md`](examples/example-plan.md).
 
 ## Design choices
 
-**Why static HTML, not a web service?** No backend, no auth, works offline via `file://`. Only state is the markdown files.
+**Why auto-detect checklist vs markdown?** A file with the frontmatter fields above (or any `- [ ]` task) renders as a checklist; everything else is plain markdown. One app, two modes, zero configuration.
 
-**Why one viewer for all dashboards?** So many concurrent checklists (one per project, one per major initiative) live in one tab. Sidebar picker, per-dashboard collapsed state.
-
-**Why regenerate on demand?** `file://` URLs can't fetch other files due to Chrome's security model. Inline HTML sidesteps it entirely.
-
-**Why strip detail bullets from the viewer?** The viewer is "what's done" at a glance. Detail stays in the markdown for anyone running the task.
+**Why one viewer for all docs?** Sidebar covers every configured root. Recents + search + browse tree make any file reachable in a keystroke or two.
 
 **Why GitHub-compatible checkbox syntax?** The markdown has to remain readable as a normal doc.
