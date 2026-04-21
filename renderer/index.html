@@ -1,0 +1,29 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' data:;" />
+  <title>Docket</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div class="app">
+    <aside id="sidebar" class="sidebar">
+      <div class="sidebar-head">
+        <input id="search-box" type="text" placeholder="Search files…" />
+      </div>
+      <div id="sidebar-results"></div>
+      <div id="sidebar-recents"></div>
+      <div id="sidebar-browse"></div>
+    </aside>
+    <main id="content" class="content">
+      <div class="empty-state"><h1>Docket</h1><p>Select a file from the sidebar.</p></div>
+    </main>
+  </div>
+
+  <script src="./vendor/marked.min.js"></script>
+  <script src="./vendor/purify.min.js"></script>
+  <script src="../lib/parser.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>
