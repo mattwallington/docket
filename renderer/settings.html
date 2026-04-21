@@ -1,0 +1,39 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self';" />
+  <title>Docket Preferences</title>
+  <link rel="stylesheet" href="./styles.css" />
+  <style>
+    body { margin: 0; }
+    .settings { display: flex; height: 100vh; }
+    .settings-nav { width: 140px; border-right: 1px solid rgba(255, 255, 255, 0.06); padding: 12px 0; }
+    .settings-nav button { display: block; width: 100%; text-align: left; background: transparent; border: 0; color: var(--fg); padding: 8px 16px; cursor: pointer; font: inherit; }
+    .settings-nav button.active { background: rgba(123, 147, 255, 0.18); }
+    .settings-body { flex: 1; padding: 20px; overflow: auto; }
+    .root-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; }
+    .root-row input { flex: 1; background: rgba(255, 255, 255, 0.06); color: var(--fg); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 4px; padding: 4px 8px; }
+    .root-row .path { color: var(--muted); font-size: 11px; flex: 2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .btn { background: rgba(255, 255, 255, 0.06); color: var(--fg); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 4px; padding: 4px 10px; cursor: pointer; font: inherit; font-size: 12px; }
+    .btn:hover { background: rgba(255, 255, 255, 0.12); }
+    .about-line { padding: 4px 0; font-size: 13px; color: var(--fg); }
+    .about-line .label { color: var(--muted); margin-right: 8px; }
+  </style>
+</head>
+<body>
+  <div class="settings">
+    <nav class="settings-nav">
+      <button type="button" class="active" data-pane="roots">Roots</button>
+      <button type="button" data-pane="appearance">Appearance</button>
+      <button type="button" data-pane="about">About</button>
+    </nav>
+    <div class="settings-body">
+      <section id="pane-roots"></section>
+      <section id="pane-appearance" style="display:none"></section>
+      <section id="pane-about" style="display:none"></section>
+    </div>
+  </div>
+  <script src="./settings.js"></script>
+</body>
+</html>

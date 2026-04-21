@@ -132,8 +132,27 @@ ipcMain.handle('docket:getVersion', async () => {
   return { version: pkg.version, channel: 'stable', buildDate: null };
 });
 
+let settingsWindow = null;
 ipcMain.handle('docket:openSettings', async () => {
-  // Implemented in Task 11
+  if (settingsWindow && !settingsWindow.isDestroyed()) {
+    settingsWindow.focus();
+    return;
+  }
+  settingsWindow = new BrowserWindow({
+    width: 600,
+    height: 480,
+    parent: mainWindow,
+    modal: false,
+    backgroundColor: '#0b0f19',
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true
+    }
+  });
+  settingsWindow.loadFile(path.join(__dirname, 'renderer', 'settings.html'));
+  settingsWindow.on('closed', () => { settingsWindow = null; });
 });
 
 // App lifecycle
