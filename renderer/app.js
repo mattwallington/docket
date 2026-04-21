@@ -191,6 +191,21 @@
 
   // ---- Search ----
 
+  const searchModeRadios = document.querySelectorAll('input[name="search-mode"]');
+  function applySearchModeRadios() {
+    const mode = appState.searchMode || 'contents';
+    searchModeRadios.forEach((r) => { r.checked = r.value === mode; });
+  }
+  applySearchModeRadios();
+  searchModeRadios.forEach((r) => {
+    r.addEventListener('change', async () => {
+      if (!r.checked) return;
+      await window.docket.setSearchMode(r.value);
+      appState = await window.docket.getState();
+      if (search.value.trim()) runSearch();
+    });
+  });
+
   let searchDebounce;
   search.addEventListener('input', () => {
     clearTimeout(searchDebounce);
@@ -214,6 +229,7 @@
     tocEl.style.display = 'none';
     favoritesEl.style.display = 'none';
 
+    const mode = appState.searchMode || 'contents';
     const qLower = q.toLowerCase();
     const nameHits = [];
     for (const f of allFiles) {
@@ -223,7 +239,7 @@
     }
     nameHits.sort((a, b) => a.rank - b.rank || a.file.relativePath.localeCompare(b.file.relativePath));
 
-    const contentHits = await window.docket.searchContent(q);
+    const contentHits = mode === 'filename' ? [] : await window.docket.searchContent(q);
     if (search.value.trim() !== q) return;
 
     const parts = [];

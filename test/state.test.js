@@ -110,3 +110,21 @@ test('setDocScale clamps and persists', async () => {
 test('setDocScale rejects non-numeric input', async () => {
   await assert.rejects(() => state.setDocScale('big'), /Invalid docScale/);
 });
+
+test('setSearchMode persists whitelisted values', async () => {
+  await state.setSearchMode('filename');
+  let s = await state.read();
+  assert.equal(s.searchMode, 'filename');
+  await state.setSearchMode('contents');
+  s = await state.read();
+  assert.equal(s.searchMode, 'contents');
+});
+
+test('setSearchMode rejects invalid values', async () => {
+  await assert.rejects(() => state.setSearchMode('bogus'), /Invalid searchMode/);
+});
+
+test('defaultState sets searchMode to contents', async () => {
+  const s = await state.read();
+  assert.equal(s.searchMode, 'contents');
+});

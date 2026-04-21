@@ -188,6 +188,12 @@ ul.task-list { list-style: none; padding: 0; margin: 0; }
   color: var(--fg);
   font-size: 13px;
 }
+.search-mode {
+  display: flex; gap: 12px; padding: 6px 2px 0; margin: 0; border: 0;
+  font-size: 11px; color: var(--muted);
+}
+.search-mode label { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
+.search-mode input[type="radio"] { margin: 0; accent-color: var(--done); width: 12px; height: 12px; cursor: pointer; }
 .empty-hint { color: var(--muted); font-size: 12px; padding: 12px; }
 details.root > summary {
   padding: 6px 12px;

@@ -11,6 +11,10 @@
     <aside id="sidebar" class="sidebar">
       <div class="sidebar-head">
         <input id="search-box" type="text" placeholder="Search files…" />
+        <fieldset class="search-mode" aria-label="Search mode">
+          <label><input type="radio" name="search-mode" value="filename"> Filename only</label>
+          <label><input type="radio" name="search-mode" value="contents"> File contents</label>
+        </fieldset>
       </div>
       <div id="sidebar-results"></div>
       <div id="sidebar-toc"></div>
