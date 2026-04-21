@@ -9,6 +9,7 @@
     "start": "electron .",
     "test": "node --test test/",
     "test:security": "node scripts/verify-security.js",
+    "test:golden": "node scripts/verify-golden-path.js",
     "postinstall": "node scripts/copy-vendor.js || true"
   },
   "devDependencies": {

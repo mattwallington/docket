@@ -64,13 +64,15 @@ async function onFsEvent(type, absolutePath) {
 
 function createMainWindow() {
   const securityCheck = process.env.DOCKET_SECURITY_CHECK === '1';
+  const goldenPath = process.env.DOCKET_GOLDEN_PATH === '1';
+  const headless = securityCheck || goldenPath;
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
     minWidth: 700,
     minHeight: 400,
     backgroundColor: '#0b0f19',
-    show: !securityCheck,
+    show: !headless,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -80,6 +82,61 @@ function createMainWindow() {
   });
   mainWindow.loadFile(path.join(__dirname, 'renderer', 'index.html'));
   if (securityCheck) runSecurityCheckAndExit();
+  if (goldenPath) runGoldenPathAndExit();
+}
+
+async function runGoldenPathAndExit() {
+  const targetPath = process.env.DOCKET_GOLDEN_FILE;
+  if (!targetPath) {
+    process.stdout.write('GOLDEN_PATH_ERROR:DOCKET_GOLDEN_FILE not set\n');
+    app.exit(2);
+    return;
+  }
+  mainWindow.webContents.once('did-finish-load', async () => {
+    try {
+      // Wait for initial render (listAllFiles + renderBrowse run on startup)
+      await new Promise((r) => setTimeout(r, 400));
+
+      const step1 = await mainWindow.webContents.executeJavaScript(`(async () => {
+        const files = await window.docket.listAllFiles();
+        return { fileCount: files.length, paths: files.map((f) => f.absolutePath) };
+      })()`);
+      if (step1.fileCount === 0) {
+        process.stdout.write('GOLDEN_PATH_RESULT:' + JSON.stringify({ step: 'list', ok: false, step1 }) + '\n');
+        return app.exit(1);
+      }
+
+      const step2 = await mainWindow.webContents.executeJavaScript(`(async () => {
+        const btn = document.querySelector('button[data-path=' + JSON.stringify(${JSON.stringify(targetPath)}) + ']');
+        if (!btn) return { clicked: false };
+        btn.click();
+        await new Promise((r) => setTimeout(r, 200));
+        return { clicked: true, contentHTML: document.getElementById('content').innerHTML };
+      })()`);
+      if (!step2.clicked || !step2.contentHTML.includes('INITIAL_MARKER')) {
+        process.stdout.write('GOLDEN_PATH_RESULT:' + JSON.stringify({ step: 'open', ok: false, step2: { clicked: step2.clicked, hasMarker: step2.contentHTML?.includes('INITIAL_MARKER') } }) + '\n');
+        return app.exit(1);
+      }
+
+      // Trigger external edit
+      await fs.writeFile(targetPath, '# Golden Path\n\nUPDATED_MARKER body.\n');
+
+      // Poll for rerender (budget 1500ms)
+      let sawUpdate = false;
+      for (let i = 0; i < 30; i++) {
+        await new Promise((r) => setTimeout(r, 50));
+        const html = await mainWindow.webContents.executeJavaScript(`document.getElementById('content').innerHTML`);
+        if (html.includes('UPDATED_MARKER')) { sawUpdate = true; break; }
+      }
+
+      const result = { step: 'done', ok: sawUpdate, fileCount: step1.fileCount };
+      process.stdout.write('GOLDEN_PATH_RESULT:' + JSON.stringify(result) + '\n');
+      app.exit(sawUpdate ? 0 : 1);
+    } catch (e) {
+      process.stdout.write('GOLDEN_PATH_ERROR:' + String(e && e.stack || e) + '\n');
+      app.exit(2);
+    }
+  });
 }
 
 function runSecurityCheckAndExit() {
