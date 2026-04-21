@@ -48,3 +48,10 @@ test('read() handles malformed JSON by reseeding', async () => {
   assert.equal(cfg.roots.length, 1);
   assert.equal(cfg.roots[0].id, 'projects');
 });
+
+test('read() reseeds when roots array is empty', async () => {
+  fs.writeFileSync(path.join(TEST_HOME, 'docket.json'), JSON.stringify({ roots: [], theme: 'dark' }));
+  const cfg = await config.read();
+  assert.equal(cfg.roots.length, 1);
+  assert.equal(cfg.roots[0].id, 'projects');
+});
