@@ -8,6 +8,7 @@
   "scripts": {
     "start": "electron .",
     "test": "node --test test/",
+    "test:security": "node scripts/verify-security.js",
     "postinstall": "node scripts/copy-vendor.js || true"
   },
   "devDependencies": {

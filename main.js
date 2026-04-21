@@ -63,12 +63,14 @@ async function onFsEvent(type, absolutePath) {
 }
 
 function createMainWindow() {
+  const securityCheck = process.env.DOCKET_SECURITY_CHECK === '1';
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
     minWidth: 700,
     minHeight: 400,
     backgroundColor: '#0b0f19',
+    show: !securityCheck,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -77,6 +79,36 @@ function createMainWindow() {
     }
   });
   mainWindow.loadFile(path.join(__dirname, 'renderer', 'index.html'));
+  if (securityCheck) runSecurityCheckAndExit();
+}
+
+function runSecurityCheckAndExit() {
+  mainWindow.webContents.once('did-finish-load', async () => {
+    try {
+      const result = await mainWindow.webContents.executeJavaScript(`(async () => {
+        const r = {
+          requireUndefined: typeof require === 'undefined',
+          processUndefined: typeof process === 'undefined',
+          globalUndefined: typeof global === 'undefined',
+          etcPasswdRejected: false,
+          etcPasswdError: null,
+          traversalRejected: false,
+          traversalError: null
+        };
+        try { await window.docket.readFile('/etc/passwd'); }
+        catch (e) { r.etcPasswdRejected = true; r.etcPasswdError = String(e && e.message || e); }
+        try { await window.docket.readFile('/tmp/../etc/passwd'); }
+        catch (e) { r.traversalRejected = true; r.traversalError = String(e && e.message || e); }
+        return r;
+      })()`);
+      process.stdout.write('SECURITY_CHECK_RESULT:' + JSON.stringify(result) + '\n');
+      const pass = result.requireUndefined && result.processUndefined && result.globalUndefined && result.etcPasswdRejected && result.traversalRejected;
+      app.exit(pass ? 0 : 1);
+    } catch (e) {
+      process.stdout.write('SECURITY_CHECK_ERROR:' + String(e) + '\n');
+      app.exit(2);
+    }
+  });
 }
 
 function buildAppMenu() {
