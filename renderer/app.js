@@ -323,7 +323,7 @@
       bodyHTML = `<div class="empty-state"><h1>Render failed</h1><p>${escapeHTML(String(e))}</p></div>`;
     }
 
-    content.innerHTML = headerParts.join('') + '<div class="doc-body">' + bodyHTML + '</div>';
+    content.innerHTML = headerParts.join('') + '<div class="doc-scroll"><div class="doc-body">' + bodyHTML + '</div></div>';
     wireCollapsibles(absolutePath);
     wireMarkdownLinks(absolutePath);
     updateScaleButtons();
@@ -515,9 +515,11 @@
     if (currentPath && allFiles.some((f) => f.absolutePath === currentPath)) {
       try {
         const text = await window.docket.readFile(currentPath);
-        const savedScroll = window.scrollY;
+        const prevScroller = content.querySelector('.doc-scroll');
+        const savedScroll = prevScroller ? prevScroller.scrollTop : 0;
         renderFile(currentPath, text);
-        window.scrollTo({ top: savedScroll, behavior: 'instant' });
+        const nextScroller = content.querySelector('.doc-scroll');
+        if (nextScroller) nextScroller.scrollTop = savedScroll;
       } catch {
         content.innerHTML = `<div class="empty-state"><h1>File was moved or deleted</h1></div>`;
         currentPath = null;
