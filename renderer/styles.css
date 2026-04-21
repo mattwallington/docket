@@ -164,6 +164,19 @@ ul.task-list { list-style: none; padding: 0; margin: 0; }
 .star-btn:hover { color: var(--pending); }
 .star-btn.on { color: var(--pending); }
 .file-head .breadcrumb { font-size: 13px; color: var(--text); }
+.file-head-right { display: flex; align-items: center; gap: 12px; }
+.scale-ctl { display: inline-flex; align-items: baseline; background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+.scale-btn {
+  background: transparent; border: 0; color: var(--text); cursor: pointer;
+  padding: 4px 10px; font-family: inherit; line-height: 1;
+  transition: background 0.1s;
+}
+.scale-btn + .scale-btn { border-left: 1px solid var(--border); }
+.scale-btn:hover:not(:disabled) { background: rgba(255,255,255,0.06); }
+.scale-btn:disabled { opacity: 0.35; cursor: default; }
+.scale-btn-sm { font-size: 10px; }
+.scale-btn-lg { font-size: 14px; font-weight: 600; }
+.doc-body { zoom: var(--doc-scale, 1); }
 .file-list .snippet { font-size: 11px; color: var(--muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sidebar-head { padding: 10px 12px; border-bottom: 1px solid rgba(255, 255, 255, 0.06); }
 #search-box {

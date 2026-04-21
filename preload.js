@@ -13,6 +13,7 @@ contextBridge.exposeInMainWorld('docket', {
   setOverride: (absolutePath, mode) => ipcRenderer.invoke('docket:setOverride', absolutePath, mode),
   clearOverride: (absolutePath) => ipcRenderer.invoke('docket:clearOverride', absolutePath),
   setSortBy: (sortBy) => ipcRenderer.invoke('docket:setSortBy', sortBy),
+  setDocScale: (value) => ipcRenderer.invoke('docket:setDocScale', value),
   getRootTocs: () => ipcRenderer.invoke('docket:getRootTocs'),
   listFiles: (rootId) => ipcRenderer.invoke('docket:listFiles', rootId),
   listAllFiles: () => ipcRenderer.invoke('docket:listAllFiles'),

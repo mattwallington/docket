@@ -94,3 +94,19 @@ test('defaultState exposes favorites array', async () => {
   const s = await state.read();
   assert.deepEqual(s.favorites, []);
 });
+
+test('setDocScale clamps and persists', async () => {
+  await state.setDocScale(1.2);
+  let s = await state.read();
+  assert.equal(s.docScale, 1.2);
+  await state.setDocScale(5); // clamped to max 1.6
+  s = await state.read();
+  assert.equal(s.docScale, 1.6);
+  await state.setDocScale(0.1); // clamped to min 0.7
+  s = await state.read();
+  assert.equal(s.docScale, 0.7);
+});
+
+test('setDocScale rejects non-numeric input', async () => {
+  await assert.rejects(() => state.setDocScale('big'), /Invalid docScale/);
+});

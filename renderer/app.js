@@ -23,6 +23,34 @@
     return (appState.favorites || []).some((f) => f.absolutePath === absolutePath);
   }
 
+  const DOC_SCALE_MIN = 0.7;
+  const DOC_SCALE_MAX = 1.6;
+  const DOC_SCALE_STEP = 0.1;
+
+  function applyDocScale() {
+    const s = Number(appState.docScale) || 1;
+    document.documentElement.style.setProperty('--doc-scale', String(s));
+  }
+  applyDocScale();
+
+  async function adjustDocScale(delta) {
+    const cur = Number(appState.docScale) || 1;
+    const next = Math.max(DOC_SCALE_MIN, Math.min(DOC_SCALE_MAX, Math.round((cur + delta) * 100) / 100));
+    if (next === cur) return;
+    await window.docket.setDocScale(next);
+    appState = await window.docket.getState();
+    applyDocScale();
+    updateScaleButtons();
+  }
+
+  function updateScaleButtons() {
+    const cur = Number(appState.docScale) || 1;
+    const dec = document.getElementById('scale-down');
+    const inc = document.getElementById('scale-up');
+    if (dec) dec.disabled = cur <= DOC_SCALE_MIN + 1e-6;
+    if (inc) inc.disabled = cur >= DOC_SCALE_MAX - 1e-6;
+  }
+
   // ---- Sidebar rendering ----
 
   function compareFiles(a, b) {
@@ -259,9 +287,13 @@
       : '';
     const fav = isFavorite(absolutePath);
     const starHTML = `<button type="button" id="fav-toggle" class="star-btn${fav ? ' on' : ''}" title="${fav ? 'Remove from favorites' : 'Add to favorites'}" aria-pressed="${fav}">${fav ? '★' : '☆'}</button>`;
+    const scaleHTML = `<div class="scale-ctl" role="group" aria-label="Text size">
+      <button type="button" id="scale-down" class="scale-btn scale-btn-sm" title="Smaller text">A</button>
+      <button type="button" id="scale-up" class="scale-btn scale-btn-lg" title="Larger text">A</button>
+    </div>`;
     const headerParts = [];
     headerParts.push(`<header class="file-head"><div class="breadcrumb">${starHTML}<span>${escapeHTML(basename)}</span>${frontmatterWarning ? ' <span class="chip-warn">⚠ invalid frontmatter</span>' : ''}${updatedHTML}</div>`);
-    headerParts.push(`<div class="view-toggle"><label>View: <select id="view-mode"><option value="checklist"${mode === 'checklist' ? ' selected' : ''}>Checklist</option><option value="markdown"${mode === 'markdown' ? ' selected' : ''}>Markdown</option></select></label></div>`);
+    headerParts.push(`<div class="file-head-right">${scaleHTML}<div class="view-toggle"><label>View: <select id="view-mode"><option value="checklist"${mode === 'checklist' ? ' selected' : ''}>Checklist</option><option value="markdown"${mode === 'markdown' ? ' selected' : ''}>Markdown</option></select></label></div></div>`);
     headerParts.push('</header>');
 
     let bodyHTML;
@@ -275,9 +307,14 @@
       bodyHTML = `<div class="empty-state"><h1>Render failed</h1><p>${escapeHTML(String(e))}</p></div>`;
     }
 
-    content.innerHTML = headerParts.join('') + bodyHTML;
+    content.innerHTML = headerParts.join('') + '<div class="doc-body">' + bodyHTML + '</div>';
     wireCollapsibles(absolutePath);
     wireMarkdownLinks(absolutePath);
+    updateScaleButtons();
+    const dec = document.getElementById('scale-down');
+    const inc = document.getElementById('scale-up');
+    if (dec) dec.addEventListener('click', () => adjustDocScale(-DOC_SCALE_STEP));
+    if (inc) inc.addEventListener('click', () => adjustDocScale(DOC_SCALE_STEP));
 
     const toggle = document.getElementById('view-mode');
     toggle.addEventListener('change', async () => {

@@ -372,6 +372,7 @@ ipcMain.handle('docket:removeFavorite', async (_e, p) => await state.removeFavor
 ipcMain.handle('docket:setOverride', async (_e, p, mode) => await state.setOverride(p, mode));
 ipcMain.handle('docket:clearOverride', async (_e, p) => await state.clearOverride(p));
 ipcMain.handle('docket:setSortBy', async (_e, sortBy) => await state.setSortBy(sortBy));
+ipcMain.handle('docket:setDocScale', async (_e, v) => await state.setDocScale(v));
 
 // Returns, per root that has a top-level README.md, the absolute path to
 // that README. Renderer pins it as a 'Table of Contents' sidebar entry.
