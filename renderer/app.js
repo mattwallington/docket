@@ -151,17 +151,25 @@
     const override = appState.overrides[absolutePath];
     const mode = override || docketParser.detectViewMode({ meta, body });
 
-    const headerParts = [];
+    // Frontmatter warning: has delimiters but meta empty → malformed
+    const looksLikeFrontmatter = text.startsWith('---\n');
+    const frontmatterWarning = looksLikeFrontmatter && Object.keys(meta).length === 0;
+
     const basename = absolutePath.split('/').pop();
-    headerParts.push(`<header class="file-head"><div class="breadcrumb">${escapeHTML(basename)}</div>`);
+    const headerParts = [];
+    headerParts.push(`<header class="file-head"><div class="breadcrumb">${escapeHTML(basename)}${frontmatterWarning ? ' <span class="chip-warn">⚠ invalid frontmatter</span>' : ''}</div>`);
     headerParts.push(`<div class="view-toggle"><label>View: <select id="view-mode"><option value="checklist"${mode === 'checklist' ? ' selected' : ''}>Checklist</option><option value="markdown"${mode === 'markdown' ? ' selected' : ''}>Markdown</option></select></label></div>`);
     headerParts.push('</header>');
 
     let bodyHTML;
-    if (mode === 'checklist') {
-      bodyHTML = renderChecklist(meta, body);
-    } else {
-      bodyHTML = `<div class="prose">${md(text)}</div>`;
+    try {
+      if (mode === 'checklist') {
+        bodyHTML = renderChecklist(meta, body);
+      } else {
+        bodyHTML = `<div class="prose">${md(text)}</div>`;
+      }
+    } catch (e) {
+      bodyHTML = `<div class="empty-state"><h1>Render failed</h1><p>${escapeHTML(String(e))}</p></div>`;
     }
 
     content.innerHTML = headerParts.join('') + bodyHTML;

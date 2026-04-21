@@ -153,3 +153,13 @@ details.root > summary {
 }
 details > summary { cursor: pointer; }
 details summary::-webkit-details-marker { display: none; }
+.chip-warn {
+  display: inline-block;
+  background: rgba(235, 168, 80, 0.15);
+  color: #eba850;
+  border: 1px solid rgba(235, 168, 80, 0.4);
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  margin-left: 6px;
+}

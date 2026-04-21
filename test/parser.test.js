@@ -82,3 +82,10 @@ test('computeStats totals done/pending/blocked', () => {
   assert.equal(stats.blocked, 1);
   assert.equal(stats.pending, 3);
 });
+
+test('parseFrontmatter recovers gracefully from lines without colons', () => {
+  const text = '---\nname: test\nweird-line-without-colon\n---\n# Body';
+  const { meta, body } = parser.parseFrontmatter(text);
+  assert.equal(meta.name, 'test');
+  assert.match(body, /^# Body/);
+});
