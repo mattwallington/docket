@@ -89,3 +89,57 @@ test('parseFrontmatter recovers gracefully from lines without colons', () => {
   assert.equal(meta.name, 'test');
   assert.match(body, /^# Body/);
 });
+
+test('parseChecklist captures indented sub-bullets as task note', () => {
+  const body = [
+    '## Phase 1',
+    '',
+    '- [x] **1. Net-new customer — organic signup**',
+    '  - URL: `auth.example.com/`',
+    '  - Expected: signup → verify',
+    '  - *Done: tester@example.com*',
+    '',
+    '- [ ] **2. Next task**',
+    '  - URL: `auth.example.com/?invite=X`',
+    ''
+  ].join('\n');
+  const parsed = parser.parseChecklist(body);
+  const tasks = parsed.phases[0].orphanItems.filter((it) => it.type === 'task');
+  assert.equal(tasks.length, 2);
+  assert.match(tasks[0].note, /URL: `auth\.example\.com\/`/);
+  assert.match(tasks[0].note, /Expected: signup → verify/);
+  assert.match(tasks[0].note, /\*Done: tester@example\.com\*/);
+  // No dedent leftover indentation
+  assert.ok(!tasks[0].note.startsWith('  '));
+  assert.match(tasks[1].note, /URL: `auth\.example\.com\/\?invite=X`/);
+});
+
+test('parseChecklist keeps inline note AND indented continuation', () => {
+  const body = [
+    '- [ ] **Task** — inline rest',
+    '  - sub bullet',
+    ''
+  ].join('\n');
+  const parsed = parser.parseChecklist(body);
+  const task = parsed.lead[0];
+  assert.equal(task.type, 'task');
+  assert.match(task.note, /^inline rest/);
+  assert.match(task.note, /- sub bullet/);
+});
+
+test('parseChecklist does not swallow following top-level content into task note', () => {
+  const body = [
+    '- [ ] **Task**',
+    '  - sub',
+    '',
+    'Top-level paragraph after.',
+    ''
+  ].join('\n');
+  const parsed = parser.parseChecklist(body);
+  assert.equal(parsed.lead[0].type, 'task');
+  assert.match(parsed.lead[0].note, /- sub/);
+  // Top-level paragraph goes to proseBuffer, rendered as prose
+  const prose = parsed.lead.filter((it) => it.type === 'prose');
+  assert.equal(prose.length, 1);
+  assert.match(prose[0].text, /Top-level paragraph/);
+});
