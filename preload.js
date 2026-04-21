@@ -16,6 +16,7 @@ contextBridge.exposeInMainWorld('docket', {
   cancelSearch: () => ipcRenderer.invoke('docket:cancelSearch'),
   openSettingsWindow: () => ipcRenderer.invoke('docket:openSettings'),
   pickDirectory: () => ipcRenderer.invoke('docket:pickDirectory'),
+  setActivePath: (absolutePath) => ipcRenderer.invoke('docket:setActivePath', absolutePath),
   getVersion: () => ipcRenderer.invoke('docket:getVersion'),
   onFileChange: (cb) => {
     const listener = (_event, payload) => cb(payload);
@@ -26,5 +27,15 @@ contextBridge.exposeInMainWorld('docket', {
     const listener = (_event, payload) => cb(payload);
     ipcRenderer.on('docket:config-change', listener);
     return () => ipcRenderer.removeListener('docket:config-change', listener);
+  },
+  onToggleSidebar: (cb) => {
+    const listener = () => cb();
+    ipcRenderer.on('docket:toggle-sidebar', listener);
+    return () => ipcRenderer.removeListener('docket:toggle-sidebar', listener);
+  },
+  onFocusSearch: (cb) => {
+    const listener = () => cb();
+    ipcRenderer.on('docket:focus-search', listener);
+    return () => ipcRenderer.removeListener('docket:focus-search', listener);
   }
 });

@@ -143,6 +143,7 @@
 
   async function openFile(absolutePath) {
     currentPath = absolutePath;
+    window.docket.setActivePath(absolutePath);
     try {
       const text = await window.docket.readFile(absolutePath);
       await window.docket.addRecent(absolutePath);
@@ -306,10 +307,12 @@
       } catch {
         content.innerHTML = `<div class="empty-state"><h1>File was moved or deleted</h1></div>`;
         currentPath = null;
+        window.docket.setActivePath(null);
       }
     } else if (currentPath) {
       content.innerHTML = `<div class="empty-state"><h1>File was moved or deleted</h1></div>`;
       currentPath = null;
+      window.docket.setActivePath(null);
     }
   });
 
@@ -319,16 +322,25 @@
     await renderBrowse();
   });
 
-  // ---- Keyboard shortcuts ----
-  document.addEventListener('keydown', (e) => {
-    if ((e.metaKey || e.ctrlKey) && e.key === 'f') {
-      e.preventDefault();
-      search.focus(); search.select();
-    }
-    if ((e.metaKey || e.ctrlKey) && e.key === ',') {
-      e.preventDefault();
-      window.docket.openSettingsWindow();
-    }
+  // ---- Menu-driven actions (accelerators live on the menu items) ----
+  function applySidebarHidden(hidden) {
+    const sidebar = document.getElementById('sidebar');
+    if (!sidebar) return;
+    sidebar.classList.toggle('hidden', hidden);
+  }
+  const initialHidden = localStorage.getItem(SIDEBAR_KEY) === '1';
+  applySidebarHidden(initialHidden);
+
+  window.docket.onToggleSidebar(() => {
+    const sidebar = document.getElementById('sidebar');
+    const nowHidden = !sidebar.classList.contains('hidden');
+    applySidebarHidden(nowHidden);
+    localStorage.setItem(SIDEBAR_KEY, nowHidden ? '1' : '0');
+  });
+
+  window.docket.onFocusSearch(() => {
+    search.focus();
+    search.select();
   });
 
   await renderBrowse();

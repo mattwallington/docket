@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, Menu } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, Menu, shell } = require('electron');
 const path = require('path');
 const fs = require('fs').promises;
 const chokidar = require('chokidar');
@@ -14,6 +14,7 @@ let mainWindow = null;
 let watcher = null;
 let fileIndex = new Map();  // rootId -> FileEntry[]
 let rootStatuses = new Map(); // rootId -> { capped, status }
+let currentActivePath = null;
 
 function withinAnyRoot(absolutePath, cfg) {
   const resolved = path.resolve(absolutePath);
@@ -170,6 +171,48 @@ function runSecurityCheckAndExit() {
   });
 }
 
+async function addRootViaPicker() {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  const result = await dialog.showOpenDialog(mainWindow, {
+    properties: ['openDirectory'],
+    title: 'Add Root'
+  });
+  if (result.canceled || !result.filePaths.length) return;
+  const pickedPath = result.filePaths[0];
+  const cfg = await config.read();
+  if (cfg.roots.some((r) => path.resolve(r.path) === path.resolve(pickedPath))) return;
+  const id = path.basename(pickedPath).toLowerCase().replace(/[^a-z0-9]+/g, '-') || `root-${cfg.roots.length + 1}`;
+  const next = await config.write({ roots: [...cfg.roots, { id, path: pickedPath, label: path.basename(pickedPath) || pickedPath }] });
+  await rebuildIndex();
+  await restartWatcher();
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('docket:config-change', next);
+  }
+}
+
+function revealCurrentFile() {
+  if (currentActivePath) shell.showItemInFolder(currentActivePath);
+}
+
+function toggleSidebar() {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('docket:toggle-sidebar');
+  }
+}
+
+function focusSearch() {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('docket:focus-search');
+  }
+}
+
+function updateRevealMenuState() {
+  const menu = Menu.getApplicationMenu();
+  if (!menu) return;
+  const item = menu.getMenuItemById('reveal-file');
+  if (item) item.enabled = Boolean(currentActivePath);
+}
+
 function buildAppMenu() {
   const isMac = process.platform === 'darwin';
   const template = [
@@ -178,11 +221,7 @@ function buildAppMenu() {
       submenu: [
         { role: 'about' },
         { type: 'separator' },
-        {
-          label: 'Preferences…',
-          accelerator: 'Cmd+,',
-          click: () => { openSettingsDirectly(); }
-        },
+        { label: 'Preferences…', accelerator: 'Cmd+,', click: openSettingsDirectly },
         { type: 'separator' },
         { role: 'services' },
         { type: 'separator' },
@@ -193,8 +232,34 @@ function buildAppMenu() {
         { role: 'quit' }
       ]
     }] : []),
+    {
+      label: 'File',
+      submenu: [
+        { label: 'Add Root…', accelerator: 'CmdOrCtrl+Shift+O', click: addRootViaPicker },
+        { label: 'Preferences…', accelerator: 'CmdOrCtrl+,', click: openSettingsDirectly },
+        { type: 'separator' },
+        { label: 'Reveal File in Finder', id: 'reveal-file', enabled: false, click: revealCurrentFile },
+        { type: 'separator' },
+        isMac ? { role: 'close' } : { role: 'quit' }
+      ]
+    },
     { label: 'Edit', submenu: [{ role: 'undo' }, { role: 'redo' }, { type: 'separator' }, { role: 'cut' }, { role: 'copy' }, { role: 'paste' }, { role: 'selectAll' }] },
-    { label: 'View', submenu: [{ role: 'reload' }, { role: 'toggleDevTools' }, { type: 'separator' }, { role: 'resetZoom' }, { role: 'zoomIn' }, { role: 'zoomOut' }, { type: 'separator' }, { role: 'togglefullscreen' }] },
+    {
+      label: 'View',
+      submenu: [
+        { label: 'Focus Search', accelerator: 'CmdOrCtrl+F', click: focusSearch },
+        { label: 'Toggle Sidebar', accelerator: 'CmdOrCtrl+B', click: toggleSidebar },
+        { type: 'separator' },
+        { role: 'reload' },
+        { role: 'toggleDevTools' },
+        { type: 'separator' },
+        { role: 'resetZoom' },
+        { role: 'zoomIn' },
+        { role: 'zoomOut' },
+        { type: 'separator' },
+        { role: 'togglefullscreen' }
+      ]
+    },
     { label: 'Window', submenu: [{ role: 'minimize' }, { role: 'zoom' }, ...(isMac ? [{ type: 'separator' }, { role: 'front' }] : [{ role: 'close' }])] }
   ];
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
@@ -286,6 +351,11 @@ ipcMain.handle('docket:getVersion', async () => {
 });
 
 ipcMain.handle('docket:openSettings', async () => { openSettingsDirectly(); });
+
+ipcMain.handle('docket:setActivePath', async (_e, absolutePath) => {
+  currentActivePath = absolutePath || null;
+  updateRevealMenuState();
+});
 
 // App lifecycle
 
