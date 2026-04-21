@@ -1,9 +1,0 @@
-services:
-  docket:
-    build: .
-    container_name: docket
-    ports:
-      - "80:8080"
-    volumes:
-      - ${HOME}/.docket/dashboards:/data/dashboards:ro
-    restart: unless-stopped
