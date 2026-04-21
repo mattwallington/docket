@@ -53,7 +53,7 @@ npm run build:icon     # regenerate assets/icon.icns + icon-dev.icns from SVG
 
 ## Releasing
 
-Releases are driven by `scripts/release.sh`, ported from repo-radar.
+Releases are driven by `scripts/release.sh`.
 
 ```sh
 ./scripts/release.sh                # patch bump (0.1.0 → 0.1.1)
