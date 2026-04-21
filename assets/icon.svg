@@ -12,39 +12,35 @@
       <stop offset="0%" stop-color="#34d977"/>
       <stop offset="100%" stop-color="#22c55e"/>
     </linearGradient>
-    <filter id="check-shadow" x="-20%" y="-20%" width="140%" height="140%">
-      <feGaussianBlur stdDeviation="6"/>
-      <feOffset dx="0" dy="4"/>
-      <feComponentTransfer><feFuncA type="linear" slope="0.35"/></feComponentTransfer>
-      <feComposite in2="SourceGraphic" operator="in" result="shadow"/>
-      <feMerge><feMergeNode in="shadow"/><feMergeNode in="SourceGraphic"/></feMerge>
-    </filter>
   </defs>
 
-  <!-- Rounded squircle background -->
-  <rect width="1024" height="1024" rx="224" fill="url(#bg)"/>
-  <rect x="4" y="4" width="1016" height="1016" rx="220" fill="none" stroke="#334155" stroke-width="2" opacity="0.6"/>
+  <!-- macOS Big Sur icon template: 824x824 squircle centered in 1024x1024,
+       corner radius 185 (~22.5% of squircle edge). Transparent padding
+       ensures consistency with other Dock icons. -->
+  <g transform="translate(100 100)">
+    <rect width="824" height="824" rx="185" fill="url(#bg)"/>
+    <rect x="2" y="2" width="820" height="820" rx="183" fill="none" stroke="#334155" stroke-width="2" opacity="0.5"/>
 
-  <!-- Three task rows forming the identity of docket -->
-  <g>
-    <!-- Row 1: done -->
-    <circle cx="272" cy="332" r="58" fill="url(#done)" filter="url(#check-shadow)"/>
-    <path d="M 243 332 L 266 356 L 304 314"
-          stroke="white" stroke-width="16" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-    <rect x="378" y="308" width="384" height="48" rx="24" fill="#64748b" opacity="0.85"/>
+    <!-- Content scaled into the 824x824 region (positions expressed in the
+         translated coordinate system). -->
+    <g>
+      <!-- Row 1: done -->
+      <circle cx="172" cy="250" r="48" fill="url(#done)"/>
+      <path d="M 149 250 L 167 270 L 198 232"
+            stroke="white" stroke-width="14" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      <rect x="258" y="228" width="336" height="44" rx="22" fill="#64748b" opacity="0.85"/>
 
-    <!-- Row 2: pending (amber ring) -->
-    <circle cx="272" cy="512" r="54" fill="none" stroke="#f59e0b" stroke-width="12"/>
-    <rect x="378" y="488" width="456" height="48" rx="24" fill="#334155"/>
+      <!-- Row 2: pending (amber ring) -->
+      <circle cx="172" cy="412" r="44" fill="none" stroke="#f59e0b" stroke-width="10"/>
+      <rect x="258" y="390" width="396" height="44" rx="22" fill="#334155"/>
 
-    <!-- Row 3: pending (neutral) -->
-    <circle cx="272" cy="692" r="54" fill="none" stroke="#64748b" stroke-width="12"/>
-    <rect x="378" y="668" width="320" height="48" rx="24" fill="#334155"/>
-  </g>
+      <!-- Row 3: pending (neutral ring) -->
+      <circle cx="172" cy="574" r="44" fill="none" stroke="#64748b" stroke-width="10"/>
+      <rect x="258" y="552" width="280" height="44" rx="22" fill="#334155"/>
 
-  <!-- Progress bar — roughly 1/3 filled matching one-of-three done -->
-  <g transform="translate(200, 836)">
-    <rect x="0" y="0" width="624" height="20" rx="10" fill="#0b1220" stroke="#334155" stroke-width="1.5"/>
-    <rect x="2" y="2" width="204" height="16" rx="8" fill="url(#progress)"/>
+      <!-- Progress bar — ~1/3 filled, matching 1-of-3 done -->
+      <rect x="104" y="686" width="540" height="18" rx="9" fill="#0b1220" stroke="#334155" stroke-width="1.5"/>
+      <rect x="106" y="688" width="180" height="14" rx="7" fill="url(#progress)"/>
+    </g>
   </g>
 </svg>

@@ -120,7 +120,7 @@ async function runBuildIconAndExit() {
       ['icon_512x512@2x.png', 1024]
     ];
     for (const [name, size] of sizes) {
-      const resized = size === 1024 ? image : image.resize({ width: size, height: size, quality: 'best' });
+      const resized = image.resize({ width: size, height: size, quality: 'best' });
       fsSync.writeFileSync(path.join(outDir, name), resized.toPNG());
       process.stdout.write('  wrote ' + name + ' (' + size + 'x' + size + ')\n');
     }
