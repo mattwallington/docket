@@ -3,6 +3,8 @@ const path = require('path');
 const fs = require('fs').promises;
 const chokidar = require('chokidar');
 
+app.setName('Docket');
+
 const config = require('./lib/config.js');
 const state = require('./lib/state.js');
 const { walkRoot } = require('./lib/files.js');
