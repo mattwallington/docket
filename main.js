@@ -11,6 +11,7 @@ const { searchContent, cancelSearch } = require('./lib/search.js');
 let mainWindow = null;
 let watcher = null;
 let fileIndex = new Map();  // rootId -> FileEntry[]
+let rootStatuses = new Map(); // rootId -> { capped, status }
 
 function withinAnyRoot(absolutePath, cfg) {
   const resolved = path.resolve(absolutePath);
@@ -23,9 +24,11 @@ function withinAnyRoot(absolutePath, cfg) {
 async function rebuildIndex() {
   const cfg = await config.read();
   fileIndex = new Map();
+  rootStatuses = new Map();
   for (const root of cfg.roots) {
-    const entries = await walkRoot(root);
-    fileIndex.set(root.id, entries);
+    const result = await walkRoot(root);
+    fileIndex.set(root.id, result.entries);
+    rootStatuses.set(root.id, { capped: result.capped, status: result.status });
   }
   return cfg;
 }
@@ -148,6 +151,12 @@ ipcMain.handle('docket:updateState', async (_e, partial) => await state.write(pa
 ipcMain.handle('docket:addRecent', async (_e, p) => await state.addRecent(p));
 ipcMain.handle('docket:setOverride', async (_e, p, mode) => await state.setOverride(p, mode));
 ipcMain.handle('docket:clearOverride', async (_e, p) => await state.clearOverride(p));
+
+ipcMain.handle('docket:getRootStatuses', async () => {
+  const out = {};
+  for (const [id, v] of rootStatuses.entries()) out[id] = v;
+  return out;
+});
 
 ipcMain.handle('docket:listFiles', async (_e, rootId) => fileIndex.get(rootId) || []);
 ipcMain.handle('docket:listAllFiles', async () => {

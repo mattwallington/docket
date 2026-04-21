@@ -18,7 +18,8 @@
 
   // ---- Sidebar rendering ----
 
-  function renderBrowse() {
+  async function renderBrowse() {
+    const statuses = await window.docket.getRootStatuses();
     const byRoot = new Map();
     for (const e of allFiles) {
       if (!byRoot.has(e.rootId)) byRoot.set(e.rootId, []);
@@ -27,8 +28,16 @@
     const parts = [];
     for (const root of cfg.roots) {
       const files = (byRoot.get(root.id) || []).slice().sort((a, b) => a.relativePath.localeCompare(b.relativePath));
+      const st = statuses[root.id] || { capped: false, status: 'ok' };
+      const unavailableCls = st.status !== 'ok' ? ' unavailable' : '';
+      const label = `${escapeHTML(root.label)}${st.status === 'missing' ? ' <span class="chip-warn">missing</span>' : ''}${st.status === 'permission-denied' ? ' <span class="chip-warn">permission denied</span>' : ''}`;
+      const cappedBanner = st.capped ? `<div class="cap-warning">⚠ More than 5,000 files — sidebar listing may be incomplete. Content search still covers everything.</div>` : '';
+      if (st.status !== 'ok') {
+        parts.push(`<details class="root${unavailableCls}" title="${escapeHTML(root.path)}"><summary>${label}</summary></details>`);
+        continue;
+      }
       const tree = buildTree(files);
-      parts.push(`<details class="root" open><summary>${escapeHTML(root.label)}</summary>${renderTree(tree)}</details>`);
+      parts.push(`<details class="root" open><summary>${label}</summary>${cappedBanner}${renderTree(tree)}</details>`);
     }
     browse.innerHTML = parts.join('');
     browse.querySelectorAll('button[data-path]').forEach((btn) => {
@@ -139,7 +148,7 @@
       await window.docket.addRecent(absolutePath);
       appState = await window.docket.getState();
       renderFile(absolutePath, text);
-      renderBrowse();
+      await renderBrowse();
       if (!search.value.trim()) renderRecents();
     } catch (e) {
       content.innerHTML = `<div class="empty-state"><h1>Failed to load</h1><p>${escapeHTML(String(e))}</p></div>`;
@@ -285,7 +294,7 @@
   window.docket.onFileChange(async () => {
     allFiles = await window.docket.listAllFiles();
     if (!search.value.trim()) renderRecents();
-    renderBrowse();
+    await renderBrowse();
     if (currentPath && allFiles.some((f) => f.absolutePath === currentPath)) {
       try {
         const text = await window.docket.readFile(currentPath);
@@ -303,7 +312,7 @@
   window.docket.onConfigChange(async (newCfg) => {
     cfg = newCfg;
     allFiles = await window.docket.listAllFiles();
-    renderBrowse();
+    await renderBrowse();
   });
 
   // ---- Keyboard shortcuts ----
@@ -318,7 +327,7 @@
     }
   });
 
-  renderBrowse();
+  await renderBrowse();
   renderRecents();
 
   if (appState.recents.length) openFile(appState.recents[0].absolutePath);

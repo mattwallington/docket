@@ -2,6 +2,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('docket', {
   getConfig: () => ipcRenderer.invoke('docket:getConfig'),
+  getRootStatuses: () => ipcRenderer.invoke('docket:getRootStatuses'),
   updateConfig: (partial) => ipcRenderer.invoke('docket:updateConfig', partial),
   getState: () => ipcRenderer.invoke('docket:getState'),
   updateState: (partial) => ipcRenderer.invoke('docket:updateState', partial),
