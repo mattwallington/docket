@@ -40,6 +40,8 @@ body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sa
 .dashboard-project { font-size: 11px; color: var(--muted); margin: 2px 0; text-transform: uppercase; letter-spacing: 0.8px; }
 .empty-state { text-align: center; padding: 80px 20px; color: var(--muted); }
 .empty-state code { background: var(--card); padding: 2px 6px; border-radius: 3px; }
+.retry-btn { margin-top: 16px; background: var(--card); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 8px 16px; font: inherit; cursor: pointer; }
+.retry-btn:hover { background: rgba(255,255,255,0.04); }
 .stats { display: flex; gap: 12px; margin-bottom: 18px; flex-wrap: wrap; }
 .stat { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; min-width: 100px; }
 .stat .label { font-size: 11px; text-transform: uppercase; color: var(--muted); letter-spacing: 0.5px; }

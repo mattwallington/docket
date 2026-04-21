@@ -151,7 +151,9 @@
       await renderBrowse();
       if (!search.value.trim()) renderRecents();
     } catch (e) {
-      content.innerHTML = `<div class="empty-state"><h1>Failed to load</h1><p>${escapeHTML(String(e))}</p></div>`;
+      content.innerHTML = `<div class="empty-state"><h1>Failed to load</h1><p>${escapeHTML(String(e))}</p><button type="button" id="retry-load" class="retry-btn">Retry</button></div>`;
+      const retry = document.getElementById('retry-load');
+      if (retry) retry.addEventListener('click', () => openFile(absolutePath));
     }
   }
 
@@ -298,7 +300,9 @@
     if (currentPath && allFiles.some((f) => f.absolutePath === currentPath)) {
       try {
         const text = await window.docket.readFile(currentPath);
+        const savedScroll = window.scrollY;
         renderFile(currentPath, text);
+        window.scrollTo({ top: savedScroll, behavior: 'instant' });
       } catch {
         content.innerHTML = `<div class="empty-state"><h1>File was moved or deleted</h1></div>`;
         currentPath = null;
