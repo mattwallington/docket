@@ -4,6 +4,8 @@
 
   const browse = document.getElementById('sidebar-browse');
   const recents = document.getElementById('sidebar-recents');
+  const favoritesEl = document.getElementById('sidebar-favorites');
+  const tocEl = document.getElementById('sidebar-toc');
   const results = document.getElementById('sidebar-results');
   const search = document.getElementById('search-box');
   const content = document.getElementById('content');
@@ -14,7 +16,12 @@
   let cfg = await window.docket.getConfig();
   let allFiles = await window.docket.listAllFiles();
   let appState = await window.docket.getState();
+  let tocs = await window.docket.getRootTocs();
   let currentPath = null;
+
+  function isFavorite(absolutePath) {
+    return (appState.favorites || []).some((f) => f.absolutePath === absolutePath);
+  }
 
   // ---- Sidebar rendering ----
 
@@ -79,19 +86,78 @@
     return parts.join('');
   }
 
+  function renderListItem(absolutePath, label, { removable = false, removeKind = null } = {}) {
+    const activeCls = currentPath === absolutePath ? ' active' : '';
+    const removeHTML = removable
+      ? `<button type="button" class="remove-btn" data-remove-path="${escapeHTML(absolutePath)}" data-remove-kind="${removeKind}" title="Remove">×</button>`
+      : '';
+    return `<li class="dismissable"><button type="button" class="file-btn${activeCls}" data-path="${escapeHTML(absolutePath)}">${escapeHTML(label)}</button>${removeHTML}</li>`;
+  }
+
   function renderRecents() {
-    const valid = appState.recents.filter((r) => allFiles.some((f) => f.absolutePath === r.absolutePath));
+    const valid = (appState.recents || []).filter((r) => allFiles.some((f) => f.absolutePath === r.absolutePath));
     if (!valid.length) { recents.innerHTML = ''; return; }
     const parts = ['<div class="sidebar-section-title">Recents</div><ul class="file-list">'];
     for (const r of valid) {
       const basename = r.absolutePath.split('/').pop();
-      parts.push(`<li><button type="button" data-path="${escapeHTML(r.absolutePath)}"${currentPath === r.absolutePath ? ' class="active"' : ''}>${escapeHTML(basename)}</button></li>`);
+      parts.push(renderListItem(r.absolutePath, basename, { removable: true, removeKind: 'recent' }));
     }
     parts.push('</ul>');
     recents.innerHTML = parts.join('');
-    recents.querySelectorAll('button[data-path]').forEach((btn) => {
+    wireListSection(recents);
+  }
+
+  function renderFavorites() {
+    const valid = (appState.favorites || []).filter((f) => allFiles.some((e) => e.absolutePath === f.absolutePath));
+    if (!valid.length) { favoritesEl.innerHTML = ''; return; }
+    const parts = ['<div class="sidebar-section-title">Favorites</div><ul class="file-list">'];
+    for (const f of valid) {
+      const basename = f.absolutePath.split('/').pop();
+      parts.push(renderListItem(f.absolutePath, basename, { removable: true, removeKind: 'favorite' }));
+    }
+    parts.push('</ul>');
+    favoritesEl.innerHTML = parts.join('');
+    wireListSection(favoritesEl);
+  }
+
+  function renderToc() {
+    if (!tocs || !tocs.length) { tocEl.innerHTML = ''; return; }
+    const parts = [];
+    for (const toc of tocs) {
+      if (!toc.links.length) continue;
+      const heading = tocs.length > 1 ? `${escapeHTML(toc.rootLabel)} · Table of Contents` : 'Table of Contents';
+      parts.push(`<div class="sidebar-section-title">${heading}</div><ul class="file-list">`);
+      parts.push(renderListItem(toc.readmePath, 'README.md'));
+      for (const link of toc.links) {
+        parts.push(renderListItem(link.absolutePath, link.text || link.absolutePath.split('/').pop()));
+      }
+      parts.push('</ul>');
+    }
+    tocEl.innerHTML = parts.join('');
+    wireListSection(tocEl);
+  }
+
+  function wireListSection(container) {
+    container.querySelectorAll('button[data-path]').forEach((btn) => {
       btn.addEventListener('click', () => openFile(btn.dataset.path));
     });
+    container.querySelectorAll('button[data-remove-path]').forEach((btn) => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const p = btn.dataset.removePath;
+        const kind = btn.dataset.removeKind;
+        if (kind === 'recent') await window.docket.removeRecent(p);
+        else if (kind === 'favorite') await window.docket.removeFavorite(p);
+        appState = await window.docket.getState();
+        renderSidebar();
+      });
+    });
+  }
+
+  function renderSidebar() {
+    renderToc();
+    renderFavorites();
+    renderRecents();
   }
 
   // ---- Search ----
@@ -104,9 +170,20 @@
 
   async function runSearch() {
     const q = search.value.trim();
-    if (!q) { results.innerHTML = ''; renderRecents(); browse.style.display = ''; return; }
+    if (!q) {
+      results.innerHTML = '';
+      renderSidebar();
+      browse.style.display = '';
+      tocEl.style.display = '';
+      favoritesEl.style.display = '';
+      return;
+    }
     recents.innerHTML = '';
+    favoritesEl.innerHTML = '';
+    tocEl.innerHTML = '';
     browse.style.display = 'none';
+    tocEl.style.display = 'none';
+    favoritesEl.style.display = 'none';
 
     const qLower = q.toLowerCase();
     const nameHits = [];
@@ -156,7 +233,7 @@
       appState = await window.docket.getState();
       renderFile(absolutePath, text);
       await renderBrowse();
-      if (!search.value.trim()) renderRecents();
+      if (!search.value.trim()) renderSidebar();
     } catch (e) {
       content.innerHTML = `<div class="empty-state"><h1>Failed to load</h1><p>${escapeHTML(String(e))}</p><button type="button" id="retry-load" class="retry-btn">Retry</button></div>`;
       const retry = document.getElementById('retry-load');
@@ -179,8 +256,10 @@
     const updatedHTML = mtime
       ? `<span class="updated" data-mtime="${mtime}" title="${escapeHTML(formatAbsolute(mtime))}">Updated ${escapeHTML(formatRelative(mtime))}</span>`
       : '';
+    const fav = isFavorite(absolutePath);
+    const starHTML = `<button type="button" id="fav-toggle" class="star-btn${fav ? ' on' : ''}" title="${fav ? 'Remove from favorites' : 'Add to favorites'}" aria-pressed="${fav}">${fav ? '★' : '☆'}</button>`;
     const headerParts = [];
-    headerParts.push(`<header class="file-head"><div class="breadcrumb">${escapeHTML(basename)}${frontmatterWarning ? ' <span class="chip-warn">⚠ invalid frontmatter</span>' : ''}${updatedHTML}</div>`);
+    headerParts.push(`<header class="file-head"><div class="breadcrumb">${starHTML}<span>${escapeHTML(basename)}</span>${frontmatterWarning ? ' <span class="chip-warn">⚠ invalid frontmatter</span>' : ''}${updatedHTML}</div>`);
     headerParts.push(`<div class="view-toggle"><label>View: <select id="view-mode"><option value="checklist"${mode === 'checklist' ? ' selected' : ''}>Checklist</option><option value="markdown"${mode === 'markdown' ? ' selected' : ''}>Markdown</option></select></label></div>`);
     headerParts.push('</header>');
 
@@ -197,6 +276,7 @@
 
     content.innerHTML = headerParts.join('') + bodyHTML;
     wireCollapsibles(absolutePath);
+    wireMarkdownLinks(absolutePath);
 
     const toggle = document.getElementById('view-mode');
     toggle.addEventListener('change', async () => {
@@ -204,6 +284,44 @@
       appState = await window.docket.getState();
       renderFile(absolutePath, text);
     });
+
+    const star = document.getElementById('fav-toggle');
+    if (star) {
+      star.addEventListener('click', async () => {
+        if (isFavorite(absolutePath)) await window.docket.removeFavorite(absolutePath);
+        else await window.docket.addFavorite(absolutePath);
+        appState = await window.docket.getState();
+        renderFile(absolutePath, text);
+        renderSidebar();
+      });
+    }
+  }
+
+  function wireMarkdownLinks(absolutePath) {
+    const dir = absolutePath.replace(/\/[^/]*$/, '');
+    content.querySelectorAll('a[href]').forEach((a) => {
+      const href = a.getAttribute('href') || '';
+      if (!href || href.startsWith('#') || /^[a-z]+:/i.test(href)) return;
+      a.addEventListener('click', (e) => {
+        e.preventDefault();
+        const resolved = resolveRelative(dir, href);
+        if (allFiles.some((f) => f.absolutePath === resolved)) openFile(resolved);
+      });
+    });
+  }
+
+  function resolveRelative(baseDir, href) {
+    // Strip fragment/query for file resolution
+    const cleanHref = href.replace(/[?#].*$/, '');
+    if (cleanHref.startsWith('/')) return cleanHref;
+    const parts = (baseDir + '/' + cleanHref).split('/');
+    const stack = [];
+    for (const p of parts) {
+      if (p === '' || p === '.') continue;
+      if (p === '..') { stack.pop(); continue; }
+      stack.push(p);
+    }
+    return '/' + stack.join('/');
   }
 
   function renderChecklist(meta, body) {
@@ -337,7 +455,8 @@
 
   window.docket.onFileChange(async () => {
     allFiles = await window.docket.listAllFiles();
-    if (!search.value.trim()) renderRecents();
+    tocs = await window.docket.getRootTocs();
+    if (!search.value.trim()) renderSidebar();
     await renderBrowse();
     if (currentPath && allFiles.some((f) => f.absolutePath === currentPath)) {
       try {
@@ -360,7 +479,9 @@
   window.docket.onConfigChange(async (newCfg) => {
     cfg = newCfg;
     allFiles = await window.docket.listAllFiles();
+    tocs = await window.docket.getRootTocs();
     await renderBrowse();
+    if (!search.value.trim()) renderSidebar();
   });
 
   // ---- Menu-driven actions (accelerators live on the menu items) ----
@@ -387,11 +508,11 @@
   window.docket.onSortByChanged(async (sortBy) => {
     appState = { ...appState, sortBy };
     await renderBrowse();
-    if (!search.value.trim()) renderRecents();
+    if (!search.value.trim()) renderSidebar();
   });
 
   await renderBrowse();
-  renderRecents();
+  renderSidebar();
 
   if (appState.recents.length) openFile(appState.recents[0].absolutePath);
 })();
