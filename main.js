@@ -373,34 +373,18 @@ ipcMain.handle('docket:setOverride', async (_e, p, mode) => await state.setOverr
 ipcMain.handle('docket:clearOverride', async (_e, p) => await state.clearOverride(p));
 ipcMain.handle('docket:setSortBy', async (_e, sortBy) => await state.setSortBy(sortBy));
 
-// Returns, per root, the top-level README.md contents and resolved links if
-// present. Renderer uses this to build a 'Table of Contents' sidebar section.
+// Returns, per root that has a top-level README.md, the absolute path to
+// that README. Renderer pins it as a 'Table of Contents' sidebar entry.
 ipcMain.handle('docket:getRootTocs', async () => {
   const cfg = await config.read();
   const results = [];
   for (const root of cfg.roots) {
     const readmePath = path.join(root.path, 'README.md');
     try {
-      const body = await fs.readFile(readmePath, 'utf8');
-      const linkRe = /\[([^\]]+)\]\(([^)]+)\)/g;
-      const links = [];
-      const seen = new Set();
-      let m;
-      while ((m = linkRe.exec(body)) !== null) {
-        const text = m[1].trim();
-        let href = m[2].trim().split(/\s+/)[0]; // strip optional title
-        if (!href || href.startsWith('http') || href.startsWith('#') || href.startsWith('mailto:')) continue;
-        const abs = path.resolve(path.dirname(readmePath), href);
-        if (seen.has(abs)) continue;
-        seen.add(abs);
-        // Only include .md files that resolve inside a configured root
-        if (!abs.endsWith('.md')) continue;
-        if (!withinAnyRoot(abs, cfg)) continue;
-        links.push({ text, absolutePath: abs });
-      }
-      results.push({ rootId: root.id, rootLabel: root.label, readmePath, links });
+      await fs.access(readmePath);
+      results.push({ rootId: root.id, rootLabel: root.label, readmePath });
     } catch {
-      // No README or read failed; skip
+      // No README; skip
     }
   }
   return results;

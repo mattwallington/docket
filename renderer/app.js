@@ -33,8 +33,10 @@
 
   async function renderBrowse() {
     const statuses = await window.docket.getRootStatuses();
+    const pinnedReadmes = new Set((tocs || []).map((t) => t.readmePath));
     const byRoot = new Map();
     for (const e of allFiles) {
+      if (pinnedReadmes.has(e.absolutePath)) continue;
       if (!byRoot.has(e.rootId)) byRoot.set(e.rootId, []);
       byRoot.get(e.rootId).push(e);
     }
@@ -124,17 +126,16 @@
     if (!tocs || !tocs.length) { tocEl.innerHTML = ''; return; }
     const parts = [];
     for (const toc of tocs) {
-      if (!toc.links.length) continue;
       const heading = tocs.length > 1 ? `${escapeHTML(toc.rootLabel)} · Table of Contents` : 'Table of Contents';
       parts.push(`<div class="sidebar-section-title">${heading}</div><ul class="file-list">`);
-      parts.push(renderListItem(toc.readmePath, 'README.md'));
-      for (const link of toc.links) {
-        parts.push(renderListItem(link.absolutePath, link.text || link.absolutePath.split('/').pop()));
-      }
+      const activeCls = currentPath === toc.readmePath ? ' active' : '';
+      parts.push(`<li><button type="button" class="file-btn toc${activeCls}" data-path="${escapeHTML(toc.readmePath)}" data-skip-recents="1">README.md</button></li>`);
       parts.push('</ul>');
     }
     tocEl.innerHTML = parts.join('');
-    wireListSection(tocEl);
+    tocEl.querySelectorAll('button[data-path]').forEach((btn) => {
+      btn.addEventListener('click', () => openFile(btn.dataset.path, { skipRecents: btn.dataset.skipRecents === '1' }));
+    });
   }
 
   function wireListSection(container) {
@@ -224,12 +225,12 @@
 
   // ---- File opening + rendering ----
 
-  async function openFile(absolutePath) {
+  async function openFile(absolutePath, { skipRecents = false } = {}) {
     currentPath = absolutePath;
     window.docket.setActivePath(absolutePath);
     try {
       const text = await window.docket.readFile(absolutePath);
-      await window.docket.addRecent(absolutePath);
+      if (!skipRecents) await window.docket.addRecent(absolutePath);
       appState = await window.docket.getState();
       renderFile(absolutePath, text);
       await renderBrowse();
@@ -237,7 +238,7 @@
     } catch (e) {
       content.innerHTML = `<div class="empty-state"><h1>Failed to load</h1><p>${escapeHTML(String(e))}</p><button type="button" id="retry-load" class="retry-btn">Retry</button></div>`;
       const retry = document.getElementById('retry-load');
-      if (retry) retry.addEventListener('click', () => openFile(absolutePath));
+      if (retry) retry.addEventListener('click', () => openFile(absolutePath, { skipRecents }));
     }
   }
 
