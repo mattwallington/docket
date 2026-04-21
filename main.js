@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, Menu, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, Menu, shell, screen } = require('electron');
 const path = require('path');
 const fs = require('fs').promises;
 const chokidar = require('chokidar');
@@ -15,6 +15,7 @@ let watcher = null;
 let fileIndex = new Map();  // rootId -> FileEntry[]
 let rootStatuses = new Map(); // rootId -> { capped, status }
 let currentActivePath = null;
+let cachedState = null;      // snapshot of state.json at startup (window placement)
 
 function withinAnyRoot(absolutePath, cfg) {
   const resolved = path.resolve(absolutePath);
@@ -65,15 +66,65 @@ async function onFsEvent(type, absolutePath) {
   }
 }
 
+function sameBounds(a, b) {
+  if (!a || !b) return false;
+  return a.x === b.x && a.y === b.y && a.width === b.width && a.height === b.height;
+}
+
+function resolveInitialWindowPlacement(savedWindowState) {
+  // Defaults: centered on primary display, 1200x800.
+  const fallback = { width: 1200, height: 800 };
+  if (!savedWindowState) return fallback;
+  const { x, y, width, height, displayId, displayBounds } = savedWindowState;
+  if (![x, y, width, height].every((n) => Number.isFinite(n))) return fallback;
+  const displays = screen.getAllDisplays();
+  const target = displays.find((d) => d.id === displayId);
+  if (!target) return fallback; // monitor gone
+  if (!sameBounds(target.bounds, displayBounds)) return fallback; // monitor rearranged
+  // Verify the saved rect actually overlaps the display's work area — guards
+  // against edge cases like a resolution change keeping bounds but moving
+  // the dock.
+  const rect = { x, y, width, height };
+  const visible = Math.max(0, Math.min(rect.x + rect.width, target.bounds.x + target.bounds.width) - Math.max(rect.x, target.bounds.x))
+                * Math.max(0, Math.min(rect.y + rect.height, target.bounds.y + target.bounds.height) - Math.max(rect.y, target.bounds.y));
+  if (visible < (rect.width * rect.height) * 0.5) return fallback;
+  return { x, y, width, height };
+}
+
+let saveWindowStateTimer = null;
+function scheduleSaveWindowState(win) {
+  if (saveWindowStateTimer) clearTimeout(saveWindowStateTimer);
+  saveWindowStateTimer = setTimeout(() => saveWindowState(win), 500);
+}
+
+async function saveWindowState(win) {
+  if (!win || win.isDestroyed()) return;
+  const [x, y] = win.getPosition();
+  const [width, height] = win.getSize();
+  const display = screen.getDisplayMatching({ x, y, width, height });
+  const ws = { x, y, width, height, displayId: display.id, displayBounds: display.bounds };
+  try { await state.setWindowState(ws); } catch {}
+}
+
 function createMainWindow() {
   const securityCheck = process.env.DOCKET_SECURITY_CHECK === '1';
   const goldenPath = process.env.DOCKET_GOLDEN_PATH === '1';
   const buildIcon = process.env.DOCKET_BUILD_ICON === '1';
   if (buildIcon) { runBuildIconAndExit(); return; }
   const headless = securityCheck || goldenPath;
+
+  let placement = { width: 1200, height: 800 };
+  if (!headless) {
+    // Pull last-saved window state synchronously from whatever state.read
+    // already cached during app.whenReady. Fall back to defaults.
+    placement = resolveInitialWindowPlacement(cachedState && cachedState.windowState);
+  }
+
   mainWindow = new BrowserWindow({
-    width: 1200,
-    height: 800,
+    x: placement.x,
+    y: placement.y,
+    width: placement.width,
+    height: placement.height,
     minWidth: 700,
     minHeight: 400,
     backgroundColor: '#0b0f19',
@@ -86,6 +137,13 @@ function createMainWindow() {
     }
   });
   mainWindow.loadFile(path.join(__dirname, 'renderer', 'index.html'));
+
+  if (!headless) {
+    mainWindow.on('move', () => scheduleSaveWindowState(mainWindow));
+    mainWindow.on('resize', () => scheduleSaveWindowState(mainWindow));
+    mainWindow.on('close', () => { saveWindowState(mainWindow); });
+  }
+
   if (securityCheck) runSecurityCheckAndExit();
   if (goldenPath) runGoldenPathAndExit();
 }
@@ -447,6 +505,7 @@ app.whenReady().then(async () => {
     const iconPath = path.join(__dirname, 'assets', 'icon.png');
     try { app.dock.setIcon(iconPath); } catch {}
   }
+  cachedState = await state.read();
   await rebuildIndex();
   await restartWatcher();
   await buildAppMenu();
