@@ -23,18 +23,9 @@ body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sa
 .sidebar-item-stats { font-size: 11px; color: var(--muted); margin-top: 4px; }
 main { flex: 1; padding: 28px 48px; min-width: 0; }
 .prose { max-width: 960px; }
-.top-bar { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
-.sidebar-toggle { background: var(--card); border: 1px solid var(--border); border-radius: 6px; color: var(--text); cursor: pointer; padding: 6px 10px; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; }
-.sidebar-toggle:hover { background: rgba(255,255,255,0.03); }
-.top-meta { color: var(--muted); font-size: 12px; }
-.refresh-control { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; }
-.refresh-control label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; }
-.refresh-control input[type="checkbox"] { accent-color: var(--done); width: 14px; height: 14px; cursor: pointer; }
-.refresh-ring { width: 20px; height: 20px; }
-.refresh-ring .track { fill: none; stroke: var(--border); stroke-width: 3; }
-.refresh-ring .fill { fill: none; stroke: var(--done); stroke-width: 3; stroke-linecap: round;
-  transform: rotate(-90deg); transform-origin: center; transition: stroke-dashoffset 0.1s linear; }
-.refresh-ring.hidden { visibility: hidden; }
+.file-head .breadcrumb { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.file-head .updated { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.file-head .updated::before { content: '·'; margin-right: 8px; opacity: 0.6; }
 .dashboard-head { margin-bottom: 16px; }
 .dashboard-head h1 { margin: 0; font-size: 22px; }
 .dashboard-desc { color: var(--muted); font-size: 13px; margin: 4px 0; }

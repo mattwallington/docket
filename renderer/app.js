@@ -174,8 +174,13 @@
     const frontmatterWarning = looksLikeFrontmatter && Object.keys(meta).length === 0;
 
     const basename = absolutePath.split('/').pop();
+    const entry = allFiles.find((f) => f.absolutePath === absolutePath);
+    const mtime = entry ? entry.mtime : null;
+    const updatedHTML = mtime
+      ? `<span class="updated" data-mtime="${mtime}" title="${escapeHTML(formatAbsolute(mtime))}">Updated ${escapeHTML(formatRelative(mtime))}</span>`
+      : '';
     const headerParts = [];
-    headerParts.push(`<header class="file-head"><div class="breadcrumb">${escapeHTML(basename)}${frontmatterWarning ? ' <span class="chip-warn">⚠ invalid frontmatter</span>' : ''}</div>`);
+    headerParts.push(`<header class="file-head"><div class="breadcrumb">${escapeHTML(basename)}${frontmatterWarning ? ' <span class="chip-warn">⚠ invalid frontmatter</span>' : ''}${updatedHTML}</div>`);
     headerParts.push(`<div class="view-toggle"><label>View: <select id="view-mode"><option value="checklist"${mode === 'checklist' ? ' selected' : ''}>Checklist</option><option value="markdown"${mode === 'markdown' ? ' selected' : ''}>Markdown</option></select></label></div>`);
     headerParts.push('</header>');
 
@@ -297,6 +302,36 @@
   function escapeHTML(s) {
     return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   }
+
+  function formatRelative(ms) {
+    const diff = Math.max(0, Date.now() - ms);
+    const s = Math.floor(diff / 1000);
+    if (s < 45) return 'just now';
+    const m = Math.floor(s / 60);
+    if (m < 60) return `${m} min ago`;
+    const h = Math.floor(m / 60);
+    if (h < 24) return `${h}h ago`;
+    const d = Math.floor(h / 24);
+    if (d < 7) return `${d}d ago`;
+    const w = Math.floor(d / 7);
+    if (w < 5) return `${w}w ago`;
+    const abs = new Date(ms);
+    return abs.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  }
+
+  function formatAbsolute(ms) {
+    return new Date(ms).toLocaleString(undefined, {
+      year: 'numeric', month: 'short', day: 'numeric',
+      hour: 'numeric', minute: '2-digit'
+    });
+  }
+
+  setInterval(() => {
+    document.querySelectorAll('.updated[data-mtime]').forEach((el) => {
+      const mt = Number(el.dataset.mtime);
+      if (mt) el.textContent = 'Updated ' + formatRelative(mt);
+    });
+  }, 60_000);
 
   // ---- Live refresh ----
 
