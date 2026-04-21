@@ -9,6 +9,7 @@ contextBridge.exposeInMainWorld('docket', {
   addRecent: (absolutePath) => ipcRenderer.invoke('docket:addRecent', absolutePath),
   setOverride: (absolutePath, mode) => ipcRenderer.invoke('docket:setOverride', absolutePath, mode),
   clearOverride: (absolutePath) => ipcRenderer.invoke('docket:clearOverride', absolutePath),
+  setSortBy: (sortBy) => ipcRenderer.invoke('docket:setSortBy', sortBy),
   listFiles: (rootId) => ipcRenderer.invoke('docket:listFiles', rootId),
   listAllFiles: () => ipcRenderer.invoke('docket:listAllFiles'),
   readFile: (absolutePath) => ipcRenderer.invoke('docket:readFile', absolutePath),
@@ -37,5 +38,10 @@ contextBridge.exposeInMainWorld('docket', {
     const listener = () => cb();
     ipcRenderer.on('docket:focus-search', listener);
     return () => ipcRenderer.removeListener('docket:focus-search', listener);
+  },
+  onSortByChanged: (cb) => {
+    const listener = (_event, sortBy) => cb(sortBy);
+    ipcRenderer.on('docket:sort-by-changed', listener);
+    return () => ipcRenderer.removeListener('docket:sort-by-changed', listener);
   }
 });

@@ -206,6 +206,13 @@ function focusSearch() {
   }
 }
 
+async function setSortByFromMenu(sortBy) {
+  await state.setSortBy(sortBy);
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('docket:sort-by-changed', sortBy);
+  }
+}
+
 function updateRevealMenuState() {
   const menu = Menu.getApplicationMenu();
   if (!menu) return;
@@ -213,8 +220,10 @@ function updateRevealMenuState() {
   if (item) item.enabled = Boolean(currentActivePath);
 }
 
-function buildAppMenu() {
+async function buildAppMenu() {
   const isMac = process.platform === 'darwin';
+  const currentState = await state.read();
+  const currentSort = currentState.sortBy || 'name';
   const template = [
     ...(isMac ? [{
       label: app.name,
@@ -249,6 +258,14 @@ function buildAppMenu() {
       submenu: [
         { label: 'Focus Search', accelerator: 'CmdOrCtrl+F', click: focusSearch },
         { label: 'Toggle Sidebar', accelerator: 'CmdOrCtrl+B', click: toggleSidebar },
+        { type: 'separator' },
+        {
+          label: 'Sort Files By',
+          submenu: [
+            { label: 'Name', type: 'radio', checked: currentSort === 'name', click: () => setSortByFromMenu('name') },
+            { label: 'Last Modified', type: 'radio', checked: currentSort === 'modified', click: () => setSortByFromMenu('modified') }
+          ]
+        },
         { type: 'separator' },
         { role: 'reload' },
         { role: 'toggleDevTools' },
@@ -307,6 +324,7 @@ ipcMain.handle('docket:updateState', async (_e, partial) => await state.write(pa
 ipcMain.handle('docket:addRecent', async (_e, p) => await state.addRecent(p));
 ipcMain.handle('docket:setOverride', async (_e, p, mode) => await state.setOverride(p, mode));
 ipcMain.handle('docket:clearOverride', async (_e, p) => await state.clearOverride(p));
+ipcMain.handle('docket:setSortBy', async (_e, sortBy) => await state.setSortBy(sortBy));
 
 ipcMain.handle('docket:getRootStatuses', async () => {
   const out = {};
@@ -362,7 +380,7 @@ ipcMain.handle('docket:setActivePath', async (_e, absolutePath) => {
 app.whenReady().then(async () => {
   await rebuildIndex();
   await restartWatcher();
-  buildAppMenu();
+  await buildAppMenu();
   createMainWindow();
 
   app.on('activate', () => {

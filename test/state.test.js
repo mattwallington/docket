@@ -18,6 +18,7 @@ test('read() returns empty state on first run', async () => {
   const s = await state.read();
   assert.deepEqual(s.recents, []);
   assert.deepEqual(s.overrides, {});
+  assert.equal(s.sortBy, 'name');
 });
 
 test('write() persists partial updates', async () => {
@@ -51,4 +52,17 @@ test('clearOverride removes entry', async () => {
   await state.clearOverride('/x.md');
   const s = await state.read();
   assert.equal(s.overrides['/x.md'], undefined);
+});
+
+test('setSortBy persists valid values', async () => {
+  await state.setSortBy('modified');
+  let s = await state.read();
+  assert.equal(s.sortBy, 'modified');
+  await state.setSortBy('name');
+  s = await state.read();
+  assert.equal(s.sortBy, 'name');
+});
+
+test('setSortBy rejects invalid values', async () => {
+  await assert.rejects(() => state.setSortBy('random'), /Invalid sortBy/);
 });

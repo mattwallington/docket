@@ -18,6 +18,12 @@
 
   // ---- Sidebar rendering ----
 
+  function compareFiles(a, b) {
+    const sortBy = appState.sortBy || 'name';
+    if (sortBy === 'modified') return (b.mtime || 0) - (a.mtime || 0);
+    return a.relativePath.localeCompare(b.relativePath);
+  }
+
   async function renderBrowse() {
     const statuses = await window.docket.getRootStatuses();
     const byRoot = new Map();
@@ -27,7 +33,7 @@
     }
     const parts = [];
     for (const root of cfg.roots) {
-      const files = (byRoot.get(root.id) || []).slice().sort((a, b) => a.relativePath.localeCompare(b.relativePath));
+      const files = (byRoot.get(root.id) || []).slice().sort(compareFiles);
       const st = statuses[root.id] || { capped: false, status: 'ok' };
       const unavailableCls = st.status !== 'ok' ? ' unavailable' : '';
       const label = `${escapeHTML(root.label)}${st.status === 'missing' ? ' <span class="chip-warn">missing</span>' : ''}${st.status === 'permission-denied' ? ' <span class="chip-warn">permission denied</span>' : ''}`;
@@ -341,6 +347,12 @@
   window.docket.onFocusSearch(() => {
     search.focus();
     search.select();
+  });
+
+  window.docket.onSortByChanged(async (sortBy) => {
+    appState = { ...appState, sortBy };
+    await renderBrowse();
+    if (!search.value.trim()) renderRecents();
   });
 
   await renderBrowse();
