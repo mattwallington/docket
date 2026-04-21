@@ -68,6 +68,8 @@ async function onFsEvent(type, absolutePath) {
 function createMainWindow() {
   const securityCheck = process.env.DOCKET_SECURITY_CHECK === '1';
   const goldenPath = process.env.DOCKET_GOLDEN_PATH === '1';
+  const buildIcon = process.env.DOCKET_BUILD_ICON === '1';
+  if (buildIcon) { runBuildIconAndExit(); return; }
   const headless = securityCheck || goldenPath;
   mainWindow = new BrowserWindow({
     width: 1200,
@@ -86,6 +88,48 @@ function createMainWindow() {
   mainWindow.loadFile(path.join(__dirname, 'renderer', 'index.html'));
   if (securityCheck) runSecurityCheckAndExit();
   if (goldenPath) runGoldenPathAndExit();
+}
+
+async function runBuildIconAndExit() {
+  try {
+    const outDir = process.env.DOCKET_ICON_OUT;
+    if (!outDir) throw new Error('DOCKET_ICON_OUT not set');
+    const fsSync = require('fs');
+    const svgPath = path.join(__dirname, 'assets', 'icon.svg');
+    const svg = fsSync.readFileSync(svgPath, 'utf8');
+    const html = '<!doctype html><html><head><style>html,body{margin:0;padding:0;width:1024px;height:1024px;background:transparent;}svg{display:block;width:100%;height:100%;}</style></head><body>' + svg + '</body></html>';
+
+    const win = new BrowserWindow({
+      width: 1024, height: 1024, show: false, transparent: true, frame: false,
+      backgroundColor: '#00000000',
+      webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true }
+    });
+    await win.loadURL('data:text/html;base64,' + Buffer.from(html).toString('base64'));
+    await new Promise((r) => setTimeout(r, 250));
+    const image = await win.webContents.capturePage();
+    const sizes = [
+      ['icon_16x16.png', 16],
+      ['icon_16x16@2x.png', 32],
+      ['icon_32x32.png', 32],
+      ['icon_32x32@2x.png', 64],
+      ['icon_128x128.png', 128],
+      ['icon_128x128@2x.png', 256],
+      ['icon_256x256.png', 256],
+      ['icon_256x256@2x.png', 512],
+      ['icon_512x512.png', 512],
+      ['icon_512x512@2x.png', 1024]
+    ];
+    for (const [name, size] of sizes) {
+      const resized = size === 1024 ? image : image.resize({ width: size, height: size, quality: 'best' });
+      fsSync.writeFileSync(path.join(outDir, name), resized.toPNG());
+      process.stdout.write('  wrote ' + name + ' (' + size + 'x' + size + ')\n');
+    }
+    win.close();
+    app.exit(0);
+  } catch (e) {
+    process.stderr.write('ICON_BUILD_ERROR: ' + (e && e.stack || e) + '\n');
+    app.exit(1);
+  }
 }
 
 async function runGoldenPathAndExit() {
@@ -378,6 +422,10 @@ ipcMain.handle('docket:setActivePath', async (_e, absolutePath) => {
 // App lifecycle
 
 app.whenReady().then(async () => {
+  if (process.platform === 'darwin' && app.dock && !process.env.DOCKET_SECURITY_CHECK && !process.env.DOCKET_GOLDEN_PATH && !process.env.DOCKET_BUILD_ICON) {
+    const iconPath = path.join(__dirname, 'assets', 'icon.png');
+    try { app.dock.setIcon(iconPath); } catch {}
+  }
   await rebuildIndex();
   await restartWatcher();
   await buildAppMenu();

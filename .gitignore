@@ -1,5 +1,6 @@
 node_modules/
 dist/
 renderer/vendor/
+assets/icon.iconset/
 .DS_Store
 *.log
