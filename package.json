@@ -15,12 +15,58 @@
     "postinstall": "node scripts/copy-vendor.js || true"
   },
   "devDependencies": {
-    "electron": "^32.0.0"
+    "electron": "^32.0.0",
+    "electron-builder": "^24.9.1"
   },
   "dependencies": {
     "chokidar": "^3.6.0",
     "@vscode/ripgrep": "^1.15.9",
     "marked": "^12.0.2",
     "dompurify": "^3.1.6"
+  },
+  "build": {
+    "appId": "com.mattwallington.docket",
+    "productName": "Docket",
+    "publish": {
+      "provider": "github",
+      "owner": "mattwallington",
+      "repo": "docket"
+    },
+    "artifactName": "${name}-${version}-${arch}-${os}.${ext}",
+    "mac": {
+      "category": "public.app-category.productivity",
+      "identity": "Matthew Wallington (5S875AN2HU)",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "entitlements.plist",
+      "entitlementsInherit": "entitlements.plist",
+      "notarize": {
+        "teamId": "5S875AN2HU"
+      },
+      "target": [
+        { "target": "dir",  "arch": ["arm64", "x64"] },
+        { "target": "dmg",  "arch": ["arm64", "x64"] },
+        { "target": "zip",  "arch": ["arm64", "x64"] }
+      ],
+      "icon": "assets/icon.icns"
+    },
+    "files": [
+      "**/*",
+      "!scripts/create-installer.js",
+      "!scripts/build-icon.js",
+      "!scripts/verify-security.js",
+      "!scripts/verify-golden-path.js",
+      "!test/**",
+      "!docs/**",
+      "!assets/icon.iconset/**",
+      "!assets/icon-dev.iconset/**",
+      "!assets/icon-dev.icns",
+      "!assets/icon-dev.svg",
+      "!assets/icon.svg",
+      "build-info.json"
+    ],
+    "directories": {
+      "output": "dist"
+    }
   }
 }

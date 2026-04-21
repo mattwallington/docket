@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#2a1e07"/>
+      <stop offset="100%" stop-color="#130a01"/>
+    </linearGradient>
+    <linearGradient id="done" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fbbf24"/>
+      <stop offset="100%" stop-color="#d97706"/>
+    </linearGradient>
+    <linearGradient id="progress" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#fbbf24"/>
+      <stop offset="100%" stop-color="#f59e0b"/>
+    </linearGradient>
+  </defs>
+
+  <g transform="translate(100 100)">
+    <rect width="824" height="824" rx="185" fill="url(#bg)"/>
+    <rect x="2" y="2" width="820" height="820" rx="183" fill="none" stroke="#78350f" stroke-width="2" opacity="0.6"/>
+
+    <g>
+      <circle cx="172" cy="250" r="48" fill="url(#done)"/>
+      <path d="M 149 250 L 167 270 L 198 232"
+            stroke="#3b2108" stroke-width="14" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      <rect x="258" y="228" width="336" height="44" rx="22" fill="#78350f" opacity="0.8"/>
+
+      <circle cx="172" cy="412" r="44" fill="none" stroke="#fbbf24" stroke-width="10"/>
+      <rect x="258" y="390" width="396" height="44" rx="22" fill="#422006"/>
+
+      <circle cx="172" cy="574" r="44" fill="none" stroke="#78350f" stroke-width="10"/>
+      <rect x="258" y="552" width="280" height="44" rx="22" fill="#422006"/>
+
+      <rect x="104" y="686" width="540" height="18" rx="9" fill="#130a01" stroke="#78350f" stroke-width="1.5"/>
+      <rect x="106" y="688" width="180" height="14" rx="7" fill="url(#progress)"/>
+    </g>
+    <!-- DEV ribbon on the corner -->
+    <g transform="translate(560 590)">
+      <rect width="160" height="48" rx="10" fill="#f59e0b"/>
+      <text x="80" y="32" text-anchor="middle" font-family="-apple-system, Helvetica, Arial, sans-serif" font-size="26" font-weight="800" fill="#3b2108" letter-spacing="3">DEV</text>
+    </g>
+  </g>
+</svg>

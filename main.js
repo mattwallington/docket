@@ -152,8 +152,9 @@ async function runBuildIconAndExit() {
   try {
     const outDir = process.env.DOCKET_ICON_OUT;
     if (!outDir) throw new Error('DOCKET_ICON_OUT not set');
+    const svgName = process.env.DOCKET_ICON_SVG || 'icon.svg';
     const fsSync = require('fs');
-    const svgPath = path.join(__dirname, 'assets', 'icon.svg');
+    const svgPath = path.join(__dirname, 'assets', svgName);
     const svg = fsSync.readFileSync(svgPath, 'utf8');
     const html = '<!doctype html><html><head><style>html,body{margin:0;padding:0;width:1024px;height:1024px;background:transparent;}svg{display:block;width:100%;height:100%;}</style></head><body>' + svg + '</body></html>';
 
