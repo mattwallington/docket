@@ -17,7 +17,7 @@ test('returns inRoot=true for paths inside a configured root', () => {
   assert.equal(r.parentDir, '/Users/x/docs');
 });
 
-test('returns inRoot=true for the root path itself when it is a file', () => {
+test('returns inRoot=true for deeply-nested paths inside a configured root', () => {
   const r = resolveOpenRequest('/Users/x/docs/sub/note.md', cfg);
   assert.equal(r.inRoot, true);
 });
@@ -47,4 +47,14 @@ test('handles trailing-separator edge case (path equals root not subpath)', () =
   // /Users/x/docs2/foo.md should NOT match root /Users/x/docs
   const r = resolveOpenRequest('/Users/x/docs2/foo.md', cfg);
   assert.equal(r.inRoot, false);
+});
+
+test('accepts uppercase markdown extension', () => {
+  const r = resolveOpenRequest('/Users/x/docs/NOTE.MD', cfg);
+  assert.equal(r.inRoot, true);
+});
+
+test('relative paths fall back to process.cwd() when cwd option is omitted', () => {
+  const r = resolveOpenRequest('./note.md', cfg);
+  assert.equal(r.absolutePath, path.resolve(process.cwd(), 'note.md'));
 });
