@@ -248,6 +248,45 @@
         renderSidebar();
       });
     });
+    wireSectionDrag();
+  }
+
+  function wireSectionDrag() {
+    const cards = Array.from(sections.querySelectorAll('.section-card'));
+    let dragSrc = null;
+
+    cards.forEach((card) => {
+      card.addEventListener('dragstart', (e) => {
+        if (e.target.closest('li.draggable')) return; // favourite-row drag, not section drag
+        dragSrc = card;
+        card.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        try { e.dataTransfer.setData('text/plain', card.dataset.section); } catch {}
+      });
+      card.addEventListener('dragend', () => {
+        card.classList.remove('dragging');
+        cards.forEach((c) => c.classList.remove('drop-target'));
+        dragSrc = null;
+      });
+      card.addEventListener('dragover', (e) => {
+        if (!dragSrc || dragSrc === card) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        cards.forEach((c) => c.classList.toggle('drop-target', c === card));
+      });
+      card.addEventListener('drop', async (e) => {
+        e.preventDefault();
+        if (!dragSrc || dragSrc === card) return;
+        const order = cards.map((c) => c.dataset.section);
+        const fromIdx = order.indexOf(dragSrc.dataset.section);
+        const toIdx = order.indexOf(card.dataset.section);
+        if (fromIdx === -1 || toIdx === -1) return;
+        order.splice(toIdx, 0, order.splice(fromIdx, 1)[0]);
+        await window.docket.setSectionOrder(order);
+        appState = await window.docket.getState();
+        renderSidebar();
+      });
+    });
   }
 
   // ---- Search ----
