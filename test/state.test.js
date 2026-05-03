@@ -189,3 +189,40 @@ test('setSectionCollapsed preserves other keys when updating one section', async
 test('setSectionOrder rejects empty arrays', async () => {
   await assert.rejects(() => state.setSectionOrder([]), /must not be empty/);
 });
+
+test('defaultState exposes tabs and activeTabIndex', async () => {
+  const s = await state.read();
+  assert.deepEqual(s.tabs, []);
+  assert.equal(s.activeTabIndex, -1);
+});
+
+test('setTabs persists a valid tab list', async () => {
+  await state.setTabs([{ absolutePath: '/a.md' }, { absolutePath: '/b.md', scrollTop: 120 }]);
+  const s = await state.read();
+  assert.equal(s.tabs.length, 2);
+  assert.equal(s.tabs[0].absolutePath, '/a.md');
+  assert.equal(s.tabs[1].scrollTop, 120);
+});
+
+test('setTabs rejects non-array', async () => {
+  await assert.rejects(() => state.setTabs('foo'), /Invalid tabs/);
+});
+
+test('setTabs rejects entries missing absolutePath', async () => {
+  await assert.rejects(() => state.setTabs([{ scrollTop: 0 }]), /Invalid tabs/);
+});
+
+test('setActiveTabIndex persists and accepts -1', async () => {
+  await state.setTabs([{ absolutePath: '/a.md' }, { absolutePath: '/b.md' }]);
+  await state.setActiveTabIndex(1);
+  let s = await state.read();
+  assert.equal(s.activeTabIndex, 1);
+  await state.setActiveTabIndex(-1);
+  s = await state.read();
+  assert.equal(s.activeTabIndex, -1);
+});
+
+test('setActiveTabIndex rejects non-integer', async () => {
+  await assert.rejects(() => state.setActiveTabIndex('1'), /Invalid activeTabIndex/);
+  await assert.rejects(() => state.setActiveTabIndex(1.5), /Invalid activeTabIndex/);
+});
