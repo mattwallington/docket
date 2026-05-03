@@ -12,6 +12,7 @@
     "test:security": "node scripts/verify-security.js",
     "test:golden": "node scripts/verify-golden-path.js",
     "build:icon": "node scripts/build-icon.js",
+    "build:tray-icon": "node scripts/build-tray-icon.js",
     "build": "node scripts/build-with-version.js && electron-builder --mac",
     "release": "./scripts/release.sh",
     "postinstall": "node scripts/copy-vendor.js || true"
