@@ -245,6 +245,7 @@
         toggle.setAttribute('aria-expanded', isCollapsed ? 'false' : 'true');
         await window.docket.setSectionCollapsed(id, isCollapsed);
         appState = await window.docket.getState();
+        renderSidebar();
       });
     });
   }
