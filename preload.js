@@ -56,5 +56,8 @@ contextBridge.exposeInMainWorld('docket', {
     ipcRenderer.on('docket:open-path', listener);
     return () => ipcRenderer.removeListener('docket:open-path', listener);
   },
-  addRootForPath: (dirPath) => ipcRenderer.invoke('docket:addRootForPath', dirPath)
+  addRootForPath: (dirPath) => ipcRenderer.invoke('docket:addRootForPath', dirPath),
+  setSectionOrder: (order) => ipcRenderer.invoke('docket:setSectionOrder', order),
+  setSectionCollapsed: (id, collapsed) => ipcRenderer.invoke('docket:setSectionCollapsed', id, collapsed),
+  setFavoritesOrder: (paths) => ipcRenderer.invoke('docket:setFavoritesOrder', paths)
 });

@@ -562,6 +562,9 @@ ipcMain.handle('docket:clearOverride', async (_e, p) => await state.clearOverrid
 ipcMain.handle('docket:setSortBy', async (_e, sortBy) => await state.setSortBy(sortBy));
 ipcMain.handle('docket:setSearchMode', async (_e, mode) => await state.setSearchMode(mode));
 ipcMain.handle('docket:setDocScale', async (_e, v) => await state.setDocScale(v));
+ipcMain.handle('docket:setSectionOrder', async (_e, order) => await state.setSectionOrder(order));
+ipcMain.handle('docket:setSectionCollapsed', async (_e, id, collapsed) => await state.setSectionCollapsed(id, collapsed));
+ipcMain.handle('docket:setFavoritesOrder', async (_e, paths) => await state.setFavoritesOrder(paths));
 
 // Returns, per root that has a top-level README.md, the absolute path to
 // that README. Renderer pins it as a 'Table of Contents' sidebar entry.

@@ -2,10 +2,7 @@
   const SIDEBAR_KEY = 'docket:sidebar-hidden';
   const COLLAPSE_KEY = 'docket:collapsed-phases';
 
-  const browse = document.getElementById('sidebar-browse');
-  const recents = document.getElementById('sidebar-recents');
-  const favoritesEl = document.getElementById('sidebar-favorites');
-  const tocEl = document.getElementById('sidebar-toc');
+  const sections = document.getElementById('sidebar-sections');
   const results = document.getElementById('sidebar-results');
   const search = document.getElementById('search-box');
   const content = document.getElementById('content');
@@ -22,6 +19,26 @@
 
   function isFavorite(absolutePath) {
     return (appState.favorites || []).some((f) => f.absolutePath === absolutePath);
+  }
+
+  const SECTION_TITLES = {
+    toc: 'Table of Contents',
+    favorites: 'Favorites',
+    recents: 'Recents',
+    browse: 'Files'
+  };
+
+  function orderedFavorites() {
+    const all = appState.favorites || [];
+    const order = appState.favoritesOrder || [];
+    if (!order.length) return all;
+    const byPath = new Map(all.map((f) => [f.absolutePath, f]));
+    const ordered = [];
+    for (const p of order) {
+      if (byPath.has(p)) { ordered.push(byPath.get(p)); byPath.delete(p); }
+    }
+    for (const f of all) if (byPath.has(f.absolutePath)) ordered.push(f);
+    return ordered;
   }
 
   const DOC_SCALE_MIN = 0.7;
@@ -60,6 +77,8 @@
     return a.relativePath.localeCompare(b.relativePath);
   }
 
+  let lastBrowseHTML = '';
+
   async function renderBrowse() {
     const statuses = await window.docket.getRootStatuses();
     const pinnedReadmes = new Set((tocs || []).map((t) => t.readmePath));
@@ -83,10 +102,8 @@
       const tree = buildTree(files);
       parts.push(`<details class="root" open><summary>${label}</summary>${cappedBanner}${renderTree(tree)}</details>`);
     }
-    browse.innerHTML = parts.join('');
-    browse.querySelectorAll('button[data-path]').forEach((btn) => {
-      btn.addEventListener('click', () => openFile(btn.dataset.path));
-    });
+    lastBrowseHTML = parts.join('');
+    if (!search.value.trim()) renderSidebar();
   }
 
   function buildTree(files) {
@@ -117,61 +134,99 @@
     return parts.join('');
   }
 
-  function renderListItem(absolutePath, label, { removable = false, removeKind = null } = {}) {
+  function renderListItem(absolutePath, label, { removable = false, removeKind = null, draggable = false } = {}) {
     const activeCls = currentPath === absolutePath ? ' active' : '';
     const removeHTML = removable
       ? `<button type="button" class="remove-btn" data-remove-path="${escapeHTML(absolutePath)}" data-remove-kind="${removeKind}" title="Remove">×</button>`
       : '';
-    return `<li class="dismissable"><button type="button" class="file-btn${activeCls}" data-path="${escapeHTML(absolutePath)}">${escapeHTML(label)}</button>${removeHTML}</li>`;
+    const dragAttr = draggable ? ' draggable="true"' : '';
+    const dragHandle = draggable ? `<span class="row-drag" aria-hidden="true">⋮⋮</span>` : '';
+    return `<li class="dismissable${draggable ? ' draggable' : ''}"${dragAttr} data-path="${escapeHTML(absolutePath)}">${dragHandle}<button type="button" class="file-btn${activeCls}" data-path="${escapeHTML(absolutePath)}">${escapeHTML(label)}</button>${removeHTML}</li>`;
   }
 
-  function renderRecents() {
+  function renderTocBody() {
+    if (!tocs || !tocs.length) return null;
+    const parts = [];
+    for (const toc of tocs) {
+      const heading = tocs.length > 1 ? `<div class="sub-heading">${escapeHTML(toc.rootLabel)}</div>` : '';
+      parts.push(heading);
+      parts.push('<ul class="file-list">');
+      const activeCls = currentPath === toc.readmePath ? ' active' : '';
+      parts.push(`<li><button type="button" class="file-btn toc${activeCls}" data-path="${escapeHTML(toc.readmePath)}" data-skip-recents="1">README.md</button></li>`);
+      parts.push('</ul>');
+    }
+    return parts.join('');
+  }
+
+  function renderFavoritesBody() {
+    const valid = orderedFavorites().filter((f) => allFiles.some((e) => e.absolutePath === f.absolutePath));
+    if (!valid.length) return null;
+    const parts = ['<ul class="file-list" data-favorites-list>'];
+    for (const f of valid) {
+      const basename = f.absolutePath.split('/').pop();
+      parts.push(renderListItem(f.absolutePath, basename, { removable: true, removeKind: 'favorite', draggable: true }));
+    }
+    parts.push('</ul>');
+    return parts.join('');
+  }
+
+  function renderRecentsBody() {
     const valid = (appState.recents || []).filter((r) => allFiles.some((f) => f.absolutePath === r.absolutePath));
-    if (!valid.length) { recents.innerHTML = ''; return; }
-    const parts = ['<div class="sidebar-section-title">Recents</div><ul class="file-list">'];
+    if (!valid.length) return null;
+    const parts = ['<ul class="file-list">'];
     for (const r of valid) {
       const basename = r.absolutePath.split('/').pop();
       parts.push(renderListItem(r.absolutePath, basename, { removable: true, removeKind: 'recent' }));
     }
     parts.push('</ul>');
-    recents.innerHTML = parts.join('');
-    wireListSection(recents);
+    return parts.join('');
   }
 
-  function renderFavorites() {
-    const valid = (appState.favorites || []).filter((f) => allFiles.some((e) => e.absolutePath === f.absolutePath));
-    if (!valid.length) { favoritesEl.innerHTML = ''; return; }
-    const parts = ['<div class="sidebar-section-title">Favorites</div><ul class="file-list">'];
-    for (const f of valid) {
-      const basename = f.absolutePath.split('/').pop();
-      parts.push(renderListItem(f.absolutePath, basename, { removable: true, removeKind: 'favorite' }));
-    }
-    parts.push('</ul>');
-    favoritesEl.innerHTML = parts.join('');
-    wireListSection(favoritesEl);
+  function renderBrowseBody() {
+    return lastBrowseHTML || '<div class="empty-hint">No files yet.</div>';
   }
 
-  function renderToc() {
-    if (!tocs || !tocs.length) { tocEl.innerHTML = ''; return; }
-    const parts = [];
-    for (const toc of tocs) {
-      const heading = tocs.length > 1 ? `${escapeHTML(toc.rootLabel)} · Table of Contents` : 'Table of Contents';
-      parts.push(`<div class="sidebar-section-title">${heading}</div><ul class="file-list">`);
-      const activeCls = currentPath === toc.readmePath ? ' active' : '';
-      parts.push(`<li><button type="button" class="file-btn toc${activeCls}" data-path="${escapeHTML(toc.readmePath)}" data-skip-recents="1">README.md</button></li>`);
-      parts.push('</ul>');
+  function renderSectionBody(id) {
+    if (id === 'toc') return renderTocBody();
+    if (id === 'favorites') return renderFavoritesBody();
+    if (id === 'recents') return renderRecentsBody();
+    if (id === 'browse') return renderBrowseBody();
+    return null;
+  }
+
+  function renderSidebar() {
+    const order = (appState.sectionOrder && appState.sectionOrder.length)
+      ? appState.sectionOrder
+      : ['toc', 'favorites', 'recents', 'browse'];
+    const collapsed = appState.collapsedSections || {};
+
+    const cards = [];
+    for (const id of order) {
+      const bodyHTML = renderSectionBody(id);
+      if (bodyHTML === null) continue;
+      const isCollapsed = Boolean(collapsed[id]);
+      cards.push(`
+        <section class="section-card${isCollapsed ? ' collapsed' : ''}" data-section="${id}" draggable="true">
+          <header class="section-card-head">
+            <button type="button" class="section-toggle" aria-expanded="${isCollapsed ? 'false' : 'true'}">
+              <span class="chevron" aria-hidden="true">▾</span>
+              <span class="section-title">${escapeHTML(SECTION_TITLES[id] || id)}</span>
+            </button>
+            <span class="drag-handle" aria-hidden="true" title="Drag to reorder">⋮⋮</span>
+          </header>
+          <div class="section-card-body">${bodyHTML}</div>
+        </section>
+      `);
     }
-    tocEl.innerHTML = parts.join('');
-    tocEl.querySelectorAll('button[data-path]').forEach((btn) => {
+    sections.innerHTML = cards.join('');
+    wireSectionCards();
+  }
+
+  function wireSectionCards() {
+    sections.querySelectorAll('button[data-path]').forEach((btn) => {
       btn.addEventListener('click', () => openFile(btn.dataset.path, { skipRecents: btn.dataset.skipRecents === '1' }));
     });
-  }
-
-  function wireListSection(container) {
-    container.querySelectorAll('button[data-path]').forEach((btn) => {
-      btn.addEventListener('click', () => openFile(btn.dataset.path));
-    });
-    container.querySelectorAll('button[data-remove-path]').forEach((btn) => {
+    sections.querySelectorAll('button[data-remove-path]').forEach((btn) => {
       btn.addEventListener('click', async (e) => {
         e.stopPropagation();
         const p = btn.dataset.removePath;
@@ -182,12 +237,16 @@
         renderSidebar();
       });
     });
-  }
-
-  function renderSidebar() {
-    renderToc();
-    renderFavorites();
-    renderRecents();
+    sections.querySelectorAll('.section-toggle').forEach((toggle) => {
+      toggle.addEventListener('click', async () => {
+        const card = toggle.closest('.section-card');
+        const id = card.dataset.section;
+        const isCollapsed = card.classList.toggle('collapsed');
+        toggle.setAttribute('aria-expanded', isCollapsed ? 'false' : 'true');
+        await window.docket.setSectionCollapsed(id, isCollapsed);
+        appState = await window.docket.getState();
+      });
+    });
   }
 
   // ---- Search ----
@@ -217,18 +276,11 @@
     const q = search.value.trim();
     if (!q) {
       results.innerHTML = '';
+      sections.style.display = '';
       renderSidebar();
-      browse.style.display = '';
-      tocEl.style.display = '';
-      favoritesEl.style.display = '';
       return;
     }
-    recents.innerHTML = '';
-    favoritesEl.innerHTML = '';
-    tocEl.innerHTML = '';
-    browse.style.display = 'none';
-    tocEl.style.display = 'none';
-    favoritesEl.style.display = 'none';
+    sections.style.display = 'none';
 
     const mode = appState.searchMode || 'contents';
     const qLower = q.toLowerCase();
@@ -280,7 +332,6 @@
       appState = await window.docket.getState();
       renderFile(absolutePath, text);
       await renderBrowse();
-      if (!search.value.trim()) renderSidebar();
     } catch (e) {
       content.innerHTML = `<div class="empty-state"><h1>Failed to load</h1><p>${escapeHTML(String(e))}</p><button type="button" id="retry-load" class="retry-btn">Retry</button></div>`;
       const retry = document.getElementById('retry-load');
@@ -539,7 +590,6 @@
   window.docket.onFileChange(async () => {
     allFiles = await window.docket.listAllFiles();
     tocs = await window.docket.getRootTocs();
-    if (!search.value.trim()) renderSidebar();
     await renderBrowse();
     if (currentPath && allFiles.some((f) => f.absolutePath === currentPath)) {
       try {
@@ -566,7 +616,6 @@
     allFiles = await window.docket.listAllFiles();
     tocs = await window.docket.getRootTocs();
     await renderBrowse();
-    if (!search.value.trim()) renderSidebar();
   });
 
   // ---- Menu-driven actions (accelerators live on the menu items) ----
@@ -593,7 +642,6 @@
   window.docket.onSortByChanged(async (sortBy) => {
     appState = { ...appState, sortBy };
     await renderBrowse();
-    if (!search.value.trim()) renderSidebar();
   });
 
   window.docket.onOpenPath(async ({ absolutePath, inRoot, parentDir }) => {
@@ -602,7 +650,6 @@
   });
 
   await renderBrowse();
-  renderSidebar();
 
   if (appState.recents.length) openFile(appState.recents[0].absolutePath);
 })();

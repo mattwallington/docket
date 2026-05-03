@@ -254,3 +254,60 @@ details.root.unavailable summary { opacity: 0.5; cursor: default; }
   cursor: pointer;
 }
 .outside-root-banner button:hover { background: rgba(255,255,255,0.10); }
+
+#sidebar-sections { display: flex; flex-direction: column; gap: 8px; padding: 8px 6px; }
+
+.section-card {
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.section-card.dragging { opacity: 0.4; }
+.section-card.drop-target { border-color: var(--done); box-shadow: 0 0 0 1px var(--done) inset; }
+
+.section-card-head {
+  display: flex; align-items: center; gap: 6px;
+  padding: 4px 6px 4px 8px;
+  background: rgba(255, 255, 255, 0.02);
+  cursor: default;
+}
+.section-toggle {
+  flex: 1 1 auto;
+  display: flex; align-items: center; gap: 6px;
+  background: transparent; border: 0; color: var(--text);
+  padding: 4px 4px; font: inherit; cursor: pointer; text-align: left;
+  font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--muted);
+}
+.section-toggle:hover { color: var(--text); }
+.section-toggle .chevron { font-size: 10px; transition: transform 0.15s ease; width: 12px; flex-shrink: 0; text-align: center; }
+.section-card.collapsed .section-toggle .chevron { transform: rotate(-90deg); }
+.section-card.collapsed .section-card-body { display: none; }
+
+.drag-handle {
+  flex: 0 0 auto;
+  color: var(--muted); opacity: 0; transition: opacity 0.1s;
+  cursor: grab; padding: 0 4px; font-size: 11px;
+  user-select: none;
+}
+.section-card-head:hover .drag-handle { opacity: 0.6; }
+.drag-handle:hover { opacity: 1; }
+.drag-handle:active { cursor: grabbing; }
+
+.section-card-body { padding: 4px 0 6px; }
+.section-card-body .file-list { padding: 0 6px; }
+.section-card-body .sub-heading {
+  font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--muted); padding: 4px 12px 2px;
+}
+
+.file-list li.draggable { padding-left: 4px; }
+.row-drag {
+  display: inline-block; width: 14px; flex-shrink: 0;
+  color: var(--muted); opacity: 0; cursor: grab;
+  font-size: 10px; line-height: 1;
+}
+.file-list li.draggable:hover .row-drag { opacity: 0.5; }
+.file-list li.draggable.dragging { opacity: 0.4; }
+.file-list li.draggable.drop-target { box-shadow: 0 -2px 0 var(--done); }
