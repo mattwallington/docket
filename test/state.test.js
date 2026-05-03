@@ -172,3 +172,20 @@ test('setFavoritesOrder persists provided order', async () => {
 test('setFavoritesOrder rejects non-array input', async () => {
   await assert.rejects(() => state.setFavoritesOrder('a'), /Invalid favoritesOrder/);
 });
+
+test('setSectionOrder rejects duplicate ids', async () => {
+  await assert.rejects(() => state.setSectionOrder(['toc', 'toc', 'browse', 'favorites']), /Invalid section/);
+});
+
+test('setSectionCollapsed preserves other keys when updating one section', async () => {
+  await state.setSectionCollapsed('toc', true);
+  await state.setSectionCollapsed('favorites', true);
+  await state.setSectionCollapsed('toc', false);
+  const s = await state.read();
+  assert.equal(s.collapsedSections.toc, false);
+  assert.equal(s.collapsedSections.favorites, true);
+});
+
+test('setSectionOrder rejects empty arrays', async () => {
+  await assert.rejects(() => state.setSectionOrder([]), /must not be empty/);
+});
