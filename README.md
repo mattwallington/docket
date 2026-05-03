@@ -37,6 +37,28 @@ All config lives in `~/.docket/`:
 - `⌘,` — open Preferences
 - `⌘Q` — quit
 
+## Menu bar
+
+Docket installs a menu-bar (tray) icon. Click it to:
+
+- *Show Docket* — bring the window forward (works after closing/hiding).
+- Pick from your *Favorites* and *Recents* — opens the file in the window directly.
+- *Quit Docket*.
+
+## Open a specific file
+
+```sh
+docket /path/to/file.md          # from a packaged install
+npm start -- /path/to/file.md    # from source
+open -a Docket /path/to/file.md  # from Finder / macOS
+```
+
+If the file isn't inside a configured root, Docket opens it for the current session and offers to add the parent directory as a root.
+
+## Sidebar
+
+Sections (Favorites, Recents, Pinned READMEs, file browser) render as collapsible cards. Drag a card by its header to reorder; drag a favourite within its card to curate the order. Order and collapse state persist in `~/.docket/state.json`.
+
 ## Checklist format
 
 See [`format.md`](format.md) for the checklist markdown convention — frontmatter plus `## Phase` headings plus `- [ ] **ID. Title**` tasks.
@@ -48,6 +70,7 @@ npm start            # launch dev app
 npm test             # run node --test
 npm run test:security  # automated IPC security assertions
 npm run test:golden    # headless smoke test (launch → open → live refresh)
+npm run test:cli       # CLI argv smoke test (no crash within 10s)
 npm run build:icon     # regenerate assets/icon.icns + icon-dev.icns from SVG
 ```
 
