@@ -128,3 +128,47 @@ test('defaultState sets searchMode to contents', async () => {
   const s = await state.read();
   assert.equal(s.searchMode, 'contents');
 });
+
+test('defaultState exposes new section fields', async () => {
+  const s = await state.read();
+  assert.deepEqual(s.sectionOrder, ['toc', 'favorites', 'recents', 'browse']);
+  assert.deepEqual(s.collapsedSections, {});
+  assert.deepEqual(s.favoritesOrder, []);
+});
+
+test('setSectionOrder persists a valid order', async () => {
+  await state.setSectionOrder(['recents', 'favorites', 'toc', 'browse']);
+  const s = await state.read();
+  assert.deepEqual(s.sectionOrder, ['recents', 'favorites', 'toc', 'browse']);
+});
+
+test('setSectionOrder rejects unknown section ids', async () => {
+  await assert.rejects(() => state.setSectionOrder(['bogus']), /Invalid section/);
+});
+
+test('setSectionOrder rejects non-array input', async () => {
+  await assert.rejects(() => state.setSectionOrder('toc'), /Invalid section/);
+});
+
+test('setSectionCollapsed persists per-section flag', async () => {
+  await state.setSectionCollapsed('recents', true);
+  let s = await state.read();
+  assert.equal(s.collapsedSections.recents, true);
+  await state.setSectionCollapsed('recents', false);
+  s = await state.read();
+  assert.equal(s.collapsedSections.recents, false);
+});
+
+test('setSectionCollapsed rejects unknown section ids', async () => {
+  await assert.rejects(() => state.setSectionCollapsed('bogus', true), /Invalid section/);
+});
+
+test('setFavoritesOrder persists provided order', async () => {
+  await state.setFavoritesOrder(['/b.md', '/a.md', '/c.md']);
+  const s = await state.read();
+  assert.deepEqual(s.favoritesOrder, ['/b.md', '/a.md', '/c.md']);
+});
+
+test('setFavoritesOrder rejects non-array input', async () => {
+  await assert.rejects(() => state.setFavoritesOrder('a'), /Invalid favoritesOrder/);
+});
