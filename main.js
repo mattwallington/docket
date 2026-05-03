@@ -11,6 +11,62 @@ const config = require('./lib/config.js');
 const state = require('./lib/state.js');
 const { walkRoot } = require('./lib/files.js');
 const { searchContent, cancelSearch } = require('./lib/search.js');
+const { resolveOpenRequest } = require('./lib/open-path.js');
+
+// Files that were passed via CLI / open-file but lie outside all configured
+// roots. We allow readFile() against these for the lifetime of this process.
+const sessionAllowedPaths = new Set();
+
+// Track an open request that arrived before the renderer was ready. Sent once
+// the window finishes loading.
+let pendingOpenRequest = null;
+
+function parseCliMarkdownArg(argv) {
+  // First non-flag arg that ends in .md / .markdown. Skip the electron binary
+  // (argv[0]) and the script path (argv[1]) when running in dev.
+  for (let i = 1; i < argv.length; i++) {
+    const a = argv[i];
+    if (!a || a.startsWith('-')) continue;
+    if (/\.(md|markdown)$/i.test(a)) return a;
+  }
+  return null;
+}
+
+async function handleOpenPath(rawPath, { fromCli = false, cwd } = {}) {
+  const cfg = await config.read();
+  let resolved;
+  try {
+    resolved = resolveOpenRequest(rawPath, cfg, { cwd });
+  } catch (e) {
+    console.warn('handleOpenPath: rejected', rawPath, e.message);
+    return;
+  }
+  if (!fsSync.existsSync(resolved.absolutePath)) {
+    console.warn('handleOpenPath: file does not exist', resolved.absolutePath);
+    return;
+  }
+  if (!resolved.inRoot) {
+    sessionAllowedPaths.add(resolved.absolutePath);
+  }
+  const payload = {
+    absolutePath: resolved.absolutePath,
+    inRoot: resolved.inRoot,
+    parentDir: resolved.parentDir
+  };
+  if (mainWindow && !mainWindow.isDestroyed() && mainWindow.webContents && !mainWindow.webContents.isLoading()) {
+    bringWindowForward();
+    mainWindow.webContents.send('docket:open-path', payload);
+  } else {
+    pendingOpenRequest = payload;
+  }
+}
+
+function bringWindowForward() {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  if (!mainWindow.isVisible()) mainWindow.show();
+  mainWindow.focus();
+}
 
 let mainWindow = null;
 let watcher = null;
@@ -39,11 +95,10 @@ if (!SKIP_INSTANCE_LOCK) {
   if (!gotLock) {
     app.quit();
   } else {
-    app.on('second-instance', () => {
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        if (mainWindow.isMinimized()) mainWindow.restore();
-        mainWindow.focus();
-      }
+    app.on('second-instance', (_e, argv, cwd) => {
+      bringWindowForward();
+      const arg = parseCliMarkdownArg(argv);
+      if (arg) handleOpenPath(arg, { fromCli: true, cwd }).catch(() => {});
     });
   }
 }
@@ -168,6 +223,13 @@ function createMainWindow() {
     }
   });
   mainWindow.loadFile(path.join(__dirname, 'renderer', 'index.html'));
+
+  mainWindow.webContents.once('did-finish-load', () => {
+    if (pendingOpenRequest) {
+      mainWindow.webContents.send('docket:open-path', pendingOpenRequest);
+      pendingOpenRequest = null;
+    }
+  });
 
   if (!headless) {
     mainWindow.on('move', () => scheduleSaveWindowState(mainWindow));
@@ -496,10 +558,11 @@ ipcMain.handle('docket:listAllFiles', async () => {
 
 ipcMain.handle('docket:readFile', async (_e, absolutePath) => {
   const cfg = await config.read();
-  if (!withinAnyRoot(absolutePath, cfg)) {
+  const resolved = path.resolve(absolutePath);
+  if (!withinAnyRoot(resolved, cfg) && !sessionAllowedPaths.has(resolved)) {
     throw new Error('Path outside configured roots');
   }
-  return await fs.readFile(absolutePath, 'utf8');
+  return await fs.readFile(resolved, 'utf8');
 });
 
 ipcMain.handle('docket:searchContent', async (_e, query) => {
@@ -590,6 +653,11 @@ ipcMain.handle('docket:setActivePath', async (_e, absolutePath) => {
 
 // App lifecycle
 
+app.on('open-file', (event, filePath) => {
+  event.preventDefault();
+  handleOpenPath(filePath, { fromCli: false }).catch(() => {});
+});
+
 app.whenReady().then(async () => {
   if (process.platform === 'darwin' && app.dock && !process.env.DOCKET_SECURITY_CHECK && !process.env.DOCKET_GOLDEN_PATH && !process.env.DOCKET_BUILD_ICON) {
     const iconPath = path.join(__dirname, 'assets', 'icon.png');
@@ -601,6 +669,11 @@ app.whenReady().then(async () => {
   await buildAppMenu();
   createMainWindow();
   setupAutoUpdater();
+
+  const initialArg = parseCliMarkdownArg(process.argv);
+  if (initialArg) {
+    handleOpenPath(initialArg, { fromCli: true }).catch(() => {});
+  }
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createMainWindow();

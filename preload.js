@@ -50,5 +50,10 @@ contextBridge.exposeInMainWorld('docket', {
     const listener = (_event, sortBy) => cb(sortBy);
     ipcRenderer.on('docket:sort-by-changed', listener);
     return () => ipcRenderer.removeListener('docket:sort-by-changed', listener);
+  },
+  onOpenPath: (cb) => {
+    const listener = (_event, payload) => cb(payload);
+    ipcRenderer.on('docket:open-path', listener);
+    return () => ipcRenderer.removeListener('docket:open-path', listener);
   }
 });
