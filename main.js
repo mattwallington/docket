@@ -385,6 +385,24 @@ async function addRootViaPicker() {
   }
 }
 
+ipcMain.handle('docket:addRootForPath', async (_e, dirPath) => {
+  if (!dirPath || typeof dirPath !== 'string') throw new Error('Invalid path');
+  const abs = path.resolve(dirPath);
+  if (!fsSync.existsSync(abs) || !fsSync.statSync(abs).isDirectory()) {
+    throw new Error('Not a directory');
+  }
+  const cfg = await config.read();
+  if (cfg.roots.some((r) => path.resolve(r.path) === abs)) return cfg;
+  const id = path.basename(abs).toLowerCase().replace(/[^a-z0-9]+/g, '-') || `root-${cfg.roots.length + 1}`;
+  const next = await config.write({ roots: [...cfg.roots, { id, path: abs, label: path.basename(abs) || abs }] });
+  await rebuildIndex();
+  await restartWatcher();
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('docket:config-change', next);
+  }
+  return next;
+});
+
 function revealCurrentFile() {
   if (currentActivePath) shell.showItemInFolder(currentActivePath);
 }

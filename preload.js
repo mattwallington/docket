@@ -55,5 +55,6 @@ contextBridge.exposeInMainWorld('docket', {
     const listener = (_event, payload) => cb(payload);
     ipcRenderer.on('docket:open-path', listener);
     return () => ipcRenderer.removeListener('docket:open-path', listener);
-  }
+  },
+  addRootForPath: (dirPath) => ipcRenderer.invoke('docket:addRootForPath', dirPath)
 });

@@ -18,6 +18,7 @@
   let appState = await window.docket.getState();
   let tocs = await window.docket.getRootTocs();
   let currentPath = null;
+  let pendingOutsideRootBanner = null;
 
   function isFavorite(absolutePath) {
     return (appState.favorites || []).some((f) => f.absolutePath === absolutePath);
@@ -312,6 +313,12 @@
     headerParts.push(`<div class="file-head-right">${scaleHTML}<div class="view-toggle"><label>View: <select id="view-mode"><option value="checklist"${mode === 'checklist' ? ' selected' : ''}>Checklist</option><option value="markdown"${mode === 'markdown' ? ' selected' : ''}>Markdown</option></select></label></div></div>`);
     headerParts.push('</header>');
 
+    let outsideBannerHTML = '';
+    if (pendingOutsideRootBanner && pendingOutsideRootBanner.parentDir) {
+      const dir = pendingOutsideRootBanner.parentDir;
+      outsideBannerHTML = `<div class="outside-root-banner" data-parent="${escapeHTML(dir)}"><span>This file isn't inside a configured root. Open it now and add <code>${escapeHTML(dir)}</code> as a root for next time?</span><div class="banner-actions"><button type="button" class="banner-add">Add root</button><button type="button" class="banner-dismiss">Dismiss</button></div></div>`;
+    }
+
     let bodyHTML;
     try {
       if (mode === 'checklist') {
@@ -323,9 +330,30 @@
       bodyHTML = `<div class="empty-state"><h1>Render failed</h1><p>${escapeHTML(String(e))}</p></div>`;
     }
 
-    content.innerHTML = headerParts.join('') + '<div class="doc-scroll"><div class="doc-body">' + bodyHTML + '</div></div>';
+    content.innerHTML = headerParts.join('') + outsideBannerHTML + '<div class="doc-scroll"><div class="doc-body">' + bodyHTML + '</div></div>';
     wireCollapsibles(absolutePath);
     wireMarkdownLinks(absolutePath);
+
+    const bannerAdd = content.querySelector('.outside-root-banner .banner-add');
+    const bannerDismiss = content.querySelector('.outside-root-banner .banner-dismiss');
+    if (bannerAdd) {
+      bannerAdd.addEventListener('click', async () => {
+        const dir = content.querySelector('.outside-root-banner').dataset.parent;
+        try { await window.docket.addRootForPath(dir); }
+        catch (e) { console.warn('addRootForPath failed', e); }
+        pendingOutsideRootBanner = null;
+        const banner = content.querySelector('.outside-root-banner');
+        if (banner) banner.remove();
+      });
+    }
+    if (bannerDismiss) {
+      bannerDismiss.addEventListener('click', () => {
+        pendingOutsideRootBanner = null;
+        const banner = content.querySelector('.outside-root-banner');
+        if (banner) banner.remove();
+      });
+    }
+
     updateScaleButtons();
     const dec = document.getElementById('scale-down');
     const inc = document.getElementById('scale-up');
@@ -565,6 +593,11 @@
     appState = { ...appState, sortBy };
     await renderBrowse();
     if (!search.value.trim()) renderSidebar();
+  });
+
+  window.docket.onOpenPath(async ({ absolutePath, inRoot, parentDir }) => {
+    pendingOutsideRootBanner = inRoot ? null : { parentDir };
+    await openFile(absolutePath, { skipRecents: !inRoot });
   });
 
   await renderBrowse();
