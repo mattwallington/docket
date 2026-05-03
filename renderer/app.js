@@ -270,7 +270,8 @@
 
   // ---- File opening + rendering ----
 
-  async function openFile(absolutePath, { skipRecents = false } = {}) {
+  async function openFile(absolutePath, { skipRecents = false, keepBanner = false } = {}) {
+    if (!keepBanner) pendingOutsideRootBanner = null;
     currentPath = absolutePath;
     window.docket.setActivePath(absolutePath);
     try {
@@ -597,7 +598,7 @@
 
   window.docket.onOpenPath(async ({ absolutePath, inRoot, parentDir }) => {
     pendingOutsideRootBanner = inRoot ? null : { parentDir };
-    await openFile(absolutePath, { skipRecents: !inRoot });
+    await openFile(absolutePath, { skipRecents: !inRoot, keepBanner: !inRoot });
   });
 
   await renderBrowse();
