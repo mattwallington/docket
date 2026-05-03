@@ -143,3 +143,30 @@ test('parseChecklist does not swallow following top-level content into task note
   assert.equal(prose.length, 1);
   assert.match(prose[0].text, /Top-level paragraph/);
 });
+
+test('parseChecklist exposes inlineNote and instructions separately', () => {
+  const text = `# Plan
+- [ ] **1. Run migrations** — pending
+    Open psql at db.example.com.
+    Run BEGIN, paste the script, COMMIT.
+- [x] **2. Done thing** — passed Apr 20
+- [ ] **3. No details**
+`;
+  const { phases, lead } = parser.parseChecklist(text);
+  const tasks = lead;
+  assert.equal(tasks[0].inlineNote, 'pending');
+  assert.equal(tasks[0].instructions, 'Open psql at db.example.com.\nRun BEGIN, paste the script, COMMIT.');
+  assert.equal(tasks[1].inlineNote, 'passed Apr 20');
+  assert.equal(tasks[1].instructions, '');
+  assert.equal(tasks[2].inlineNote, '');
+  assert.equal(tasks[2].instructions, '');
+});
+
+test('parseChecklist preserves task.note as concatenated for back-compat', () => {
+  const text = `# Plan
+- [ ] **1. Mixed** — short note
+    longer detail line
+`;
+  const { lead } = parser.parseChecklist(text);
+  assert.equal(lead[0].note, 'short note\n\nlonger detail line');
+});
