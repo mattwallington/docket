@@ -249,6 +249,7 @@
       });
     });
     wireSectionDrag();
+    wireFavoritesDrag();
   }
 
   function wireSectionDrag() {
@@ -283,6 +284,47 @@
         if (fromIdx === -1 || toIdx === -1) return;
         order.splice(toIdx, 0, order.splice(fromIdx, 1)[0]);
         await window.docket.setSectionOrder(order);
+        appState = await window.docket.getState();
+        renderSidebar();
+      });
+    });
+  }
+
+  function wireFavoritesDrag() {
+    const list = sections.querySelector('[data-favorites-list]');
+    if (!list) return;
+    const items = Array.from(list.querySelectorAll('li.draggable'));
+    let dragSrc = null;
+
+    items.forEach((li) => {
+      li.addEventListener('dragstart', (e) => {
+        dragSrc = li;
+        li.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        try { e.dataTransfer.setData('text/plain', li.dataset.path); } catch {}
+        e.stopPropagation();
+      });
+      li.addEventListener('dragend', () => {
+        li.classList.remove('dragging');
+        items.forEach((x) => x.classList.remove('drop-target'));
+        dragSrc = null;
+      });
+      li.addEventListener('dragover', (e) => {
+        if (!dragSrc || dragSrc === li) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        items.forEach((x) => x.classList.toggle('drop-target', x === li));
+      });
+      li.addEventListener('drop', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!dragSrc || dragSrc === li) return;
+        const order = items.map((x) => x.dataset.path);
+        const from = order.indexOf(dragSrc.dataset.path);
+        const to = order.indexOf(li.dataset.path);
+        if (from === -1 || to === -1) return;
+        order.splice(to, 0, order.splice(from, 1)[0]);
+        await window.docket.setFavoritesOrder(order);
         appState = await window.docket.getState();
         renderSidebar();
       });
