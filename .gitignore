@@ -7,6 +7,9 @@ renderer/vendor/
 assets/*.iconset/
 build-info.json
 
+# LLM-agent planning artifacts
+docs/superpowers/
+
 # Secrets / env
 .env
 .env.*
