@@ -16,6 +16,7 @@
   let tocs = await window.docket.getRootTocs();
   let currentPath = null;
   let pendingOutsideRootBanner = null;
+  let currentIsOutsideRoot = false;
 
   function isFavorite(absolutePath) {
     return (appState.favorites || []).some((f) => f.absolutePath === absolutePath);
@@ -405,7 +406,10 @@
   // ---- File opening + rendering ----
 
   async function openFile(absolutePath, { skipRecents = false, keepBanner = false } = {}) {
-    if (!keepBanner) pendingOutsideRootBanner = null;
+    if (!keepBanner) {
+      pendingOutsideRootBanner = null;
+      currentIsOutsideRoot = false;
+    }
     currentPath = absolutePath;
     window.docket.setActivePath(absolutePath);
     try {
@@ -673,22 +677,27 @@
     allFiles = await window.docket.listAllFiles();
     tocs = await window.docket.getRootTocs();
     await renderBrowse();
-    if (currentPath && allFiles.some((f) => f.absolutePath === currentPath)) {
-      try {
-        const text = await window.docket.readFile(currentPath);
-        const prevScroller = content.querySelector('.doc-scroll');
-        const savedScroll = prevScroller ? prevScroller.scrollTop : 0;
-        renderFile(currentPath, text);
-        const nextScroller = content.querySelector('.doc-scroll');
-        if (nextScroller) nextScroller.scrollTop = savedScroll;
-      } catch {
-        content.innerHTML = `<div class="empty-state"><h1>File was moved or deleted</h1></div>`;
-        currentPath = null;
-        window.docket.setActivePath(null);
-      }
-    } else if (currentPath) {
+    if (!currentPath) return;
+    const isInAllFiles = allFiles.some((f) => f.absolutePath === currentPath);
+    if (!isInAllFiles && !currentIsOutsideRoot) {
       content.innerHTML = `<div class="empty-state"><h1>File was moved or deleted</h1></div>`;
       currentPath = null;
+      window.docket.setActivePath(null);
+      return;
+    }
+    // Either in-root file (in allFiles) or outside-root session-allowed file —
+    // attempt to re-read in both cases.
+    try {
+      const text = await window.docket.readFile(currentPath);
+      const prevScroller = content.querySelector('.doc-scroll');
+      const savedScroll = prevScroller ? prevScroller.scrollTop : 0;
+      renderFile(currentPath, text);
+      const nextScroller = content.querySelector('.doc-scroll');
+      if (nextScroller) nextScroller.scrollTop = savedScroll;
+    } catch {
+      content.innerHTML = `<div class="empty-state"><h1>File was moved or deleted</h1></div>`;
+      currentPath = null;
+      currentIsOutsideRoot = false;
       window.docket.setActivePath(null);
     }
   });
@@ -697,6 +706,20 @@
     cfg = newCfg;
     allFiles = await window.docket.listAllFiles();
     tocs = await window.docket.getRootTocs();
+    // If the currently-shown outside-root file is now inside one of the new
+    // roots, drop the outside-root flag and the banner.
+    if (currentPath && currentIsOutsideRoot) {
+      const nowInRoot = (newCfg.roots || []).some((r) => {
+        const rootPath = r.path;
+        return currentPath === rootPath || currentPath.startsWith(rootPath + '/');
+      });
+      if (nowInRoot) {
+        currentIsOutsideRoot = false;
+        pendingOutsideRootBanner = null;
+        const banner = content.querySelector('.outside-root-banner');
+        if (banner) banner.remove();
+      }
+    }
     await renderBrowse();
   });
 
@@ -728,6 +751,7 @@
 
   window.docket.onOpenPath(async ({ absolutePath, inRoot, parentDir }) => {
     pendingOutsideRootBanner = inRoot ? null : { parentDir };
+    currentIsOutsideRoot = !inRoot;
     await openFile(absolutePath, { skipRecents: !inRoot, keepBanner: !inRoot });
   });
 
