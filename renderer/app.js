@@ -413,6 +413,17 @@
     }
     currentPath = absolutePath;
     window.docket.setActivePath(absolutePath);
+    // Tab routing: open or switch to the tab for this path, then persist.
+    // Skipped when the caller explicitly handled tab state already (e.g. tab-click).
+    if (!skipTabRoute) {
+      const next = openOrSwitchAt(absolutePath);
+      const currentTabs = appState.tabs || [];
+      if (next.tabs.length !== currentTabs.length || next.activeTabIndex !== appState.activeTabIndex) {
+        await window.docket.setTabs(next.tabs);
+        await window.docket.setActiveTabIndex(next.activeTabIndex);
+        appState = await window.docket.getState();
+      }
+    }
     try {
       const text = await window.docket.readFile(absolutePath);
       if (!skipRecents) await window.docket.addRecent(absolutePath);
@@ -424,7 +435,7 @@
     } catch (e) {
       content.innerHTML = `<div class="empty-state"><h1>Failed to load</h1><p>${escapeHTML(String(e))}</p><button type="button" id="retry-load" class="retry-btn">Retry</button></div>`;
       const retry = document.getElementById('retry-load');
-      if (retry) retry.addEventListener('click', () => openFile(absolutePath, { skipRecents }));
+      if (retry) retry.addEventListener('click', () => openFile(absolutePath, { skipRecents, keepBanner, skipTabRoute }));
     }
   }
 
@@ -970,6 +981,25 @@
   await renderBrowse();
   renderStatusBar();
   renderTabStrip();
+
+  // Drop tabs whose files are no longer in any configured root. (CLI/Finder-opened
+  // session-allowed paths from the previous run aren't tracked here; users
+  // re-open them via CLI/Finder.)
+  if ((appState.tabs || []).length) {
+    const validTabs = appState.tabs.filter((t) => allFiles.some((f) => f.absolutePath === t.absolutePath));
+    if (validTabs.length !== appState.tabs.length) {
+      let activeTabIndex = appState.activeTabIndex;
+      if (activeTabIndex >= 0) {
+        const activePath = appState.tabs[activeTabIndex] ? appState.tabs[activeTabIndex].absolutePath : null;
+        activeTabIndex = activePath ? validTabs.findIndex((t) => t.absolutePath === activePath) : -1;
+      }
+      if (activeTabIndex === -1 && validTabs.length > 0) activeTabIndex = 0;
+      await window.docket.setTabs(validTabs);
+      await window.docket.setActiveTabIndex(activeTabIndex);
+      appState = await window.docket.getState();
+      renderTabStrip();
+    }
+  }
 
   // Restore last-active tab if persisted; otherwise fall back to most-recent file.
   if (appState.activeTabIndex >= 0 && appState.tabs[appState.activeTabIndex]) {
