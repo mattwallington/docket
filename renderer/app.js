@@ -685,7 +685,7 @@
   // ---- Status bar ----
 
   const statusBar = document.getElementById('status-bar');
-  let updateState = null; // { status: 'available' | 'downloading' | 'ready' | 'none', version }
+  let updateState = null; // { status: 'available'|'downloading'|'ready'|'error'|'none', version?, percent?, bytesPerSecond?, transferred?, total?, message? }
 
   function renderStatusBar() {
     if (!currentPath) {

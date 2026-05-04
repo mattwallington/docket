@@ -714,7 +714,7 @@ function setupAutoUpdater() {
     console.error('auto-updater error:', msg);
     if (downloadInFlight) {
       downloadInFlight = false;
-      if (process.platform === 'darwin' && app.dock) app.dock.setBadge('!');
+      try { app.dock.setBadge('!'); } catch {}
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('docket:update-state', { status: 'error', message: msg });
       }

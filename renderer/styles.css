@@ -411,12 +411,12 @@ details.root.unavailable summary { opacity: 0.5; cursor: default; }
   cursor: pointer;
   font: inherit;
 }
-.update-pill:hover { filter: brightness(1.1); }
+.update-pill:hover:not(:disabled) { filter: brightness(1.1); }
 .update-pill.error {
   background: #dc2626;
   color: #ffffff;
 }
-.update-pill.error:hover { filter: brightness(1.1); }
+.update-pill.error:hover:not(:disabled) { filter: brightness(1.1); }
 .update-pill:disabled { cursor: default; opacity: 0.85; }
 
 .row.expandable { cursor: pointer; }
