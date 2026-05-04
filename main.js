@@ -20,6 +20,7 @@ const sessionAllowedPaths = new Set();
 // Track an open request that arrived before the renderer was ready. Sent once
 // the window finishes loading.
 let pendingOpenRequest = null;
+let downloadInFlight = false;
 
 function parseCliMarkdownArg(argv) {
   // First non-flag arg that ends in .md / .markdown. Skip the electron binary
@@ -638,12 +639,14 @@ ipcMain.handle('docket:checkForUpdates', async () => {
 
 ipcMain.handle('docket:downloadUpdate', async () => {
   try {
+    downloadInFlight = true;
     autoUpdater.downloadUpdate();
     if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('docket:update-state', { status: 'downloading' });
+      mainWindow.webContents.send('docket:update-state', { status: 'downloading', percent: 0 });
     }
     return { ok: true };
   } catch (e) {
+    downloadInFlight = false;
     return { ok: false, error: e && e.message ? e.message : String(e) };
   }
 });
@@ -681,7 +684,20 @@ function setupAutoUpdater() {
     }
   });
 
+  autoUpdater.on('download-progress', (info) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('docket:update-state', {
+        status: 'downloading',
+        percent: info.percent,
+        bytesPerSecond: info.bytesPerSecond,
+        transferred: info.transferred,
+        total: info.total
+      });
+    }
+  });
+
   autoUpdater.on('update-downloaded', (info) => {
+    downloadInFlight = false;
     if (process.platform === 'darwin' && app.dock) {
       try { app.dock.setBadge('•'); } catch {}
     }
@@ -694,7 +710,15 @@ function setupAutoUpdater() {
   });
 
   autoUpdater.on('error', (err) => {
-    console.error('auto-updater error:', err && err.message ? err.message : err);
+    const msg = err && err.message ? err.message : String(err);
+    console.error('auto-updater error:', msg);
+    if (downloadInFlight) {
+      downloadInFlight = false;
+      if (process.platform === 'darwin' && app.dock) app.dock.setBadge('!');
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('docket:update-state', { status: 'error', message: msg });
+      }
+    }
   });
 
   // Only actually poll if this is a packaged build. In dev (electron .)
