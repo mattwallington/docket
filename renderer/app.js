@@ -260,7 +260,27 @@
 
   function wireSectionCards() {
     sections.querySelectorAll('button[data-path]').forEach((btn) => {
-      btn.addEventListener('click', () => openFile(btn.dataset.path, { skipRecents: btn.dataset.skipRecents === '1' }));
+      let clickTimer = null;
+      btn.addEventListener('click', () => {
+        if (clickTimer) {
+          clearTimeout(clickTimer);
+          clickTimer = null;
+          // Double-click → open as permanent
+          openFile(btn.dataset.path, {
+            skipRecents: btn.dataset.skipRecents === '1',
+            preview: false
+          });
+        } else {
+          clickTimer = setTimeout(() => {
+            clickTimer = null;
+            // Single-click → open as preview
+            openFile(btn.dataset.path, {
+              skipRecents: btn.dataset.skipRecents === '1',
+              preview: true
+            });
+          }, 250);
+        }
+      });
     });
     sections.querySelectorAll('button[data-remove-path]').forEach((btn) => {
       btn.addEventListener('click', async (e) => {
@@ -509,7 +529,7 @@
 
   // ---- File opening + rendering ----
 
-  async function openFile(absolutePath, { skipRecents = false, keepBanner = false, skipTabRoute = false } = {}) {
+  async function openFile(absolutePath, { skipRecents = false, keepBanner = false, skipTabRoute = false, preview = false } = {}) {
     if (!keepBanner) {
       pendingOutsideRootBanner = null;
       currentIsOutsideRoot = false;
@@ -520,12 +540,19 @@
     // Tab routing: open or switch to the tab for this path, then persist.
     // Skipped when the caller explicitly handled tab state already (e.g. tab-click).
     if (!skipTabRoute) {
-      const next = openOrSwitchAt(absolutePath);
+      const next = openOrSwitchAt(absolutePath, { preview });
       const currentTabs = appState.tabs || [];
       if (next.tabs.length !== currentTabs.length || next.activeTabIndex !== appState.activeTabIndex) {
         await window.docket.setTabs(next.tabs);
         await window.docket.setActiveTabIndex(next.activeTabIndex);
         appState = await window.docket.getState();
+      } else {
+        // Same length + same active index — but a preview tab might have been replaced
+        // (path changed in-place). Persist the new tabs array regardless to capture this.
+        if (JSON.stringify(next.tabs) !== JSON.stringify(currentTabs)) {
+          await window.docket.setTabs(next.tabs);
+          appState = await window.docket.getState();
+        }
       }
     }
     try {
@@ -539,7 +566,7 @@
     } catch (e) {
       content.innerHTML = `<div class="empty-state"><h1>Failed to load</h1><p>${escapeHTML(String(e))}</p><button type="button" id="retry-load" class="retry-btn">Retry</button></div>`;
       const retry = document.getElementById('retry-load');
-      if (retry) retry.addEventListener('click', () => openFile(absolutePath, { skipRecents, keepBanner, skipTabRoute }));
+      if (retry) retry.addEventListener('click', () => openFile(absolutePath, { skipRecents, keepBanner, skipTabRoute, preview }));
     }
   }
 
@@ -717,7 +744,8 @@
       const fav = (appState.favorites || []).some((f) => f.absolutePath === t.absolutePath);
       const star = fav ? '<span class="tab-star" aria-hidden="true">★</span>' : '';
       const activeCls = i === activeIdx ? ' active' : '';
-      return `<div class="tab${activeCls}" data-index="${i}" data-path="${escapeHTML(t.absolutePath)}" draggable="true" title="${escapeHTML(t.absolutePath)}">
+      const previewCls = t.isPreview ? ' preview' : '';
+      return `<div class="tab${activeCls}${previewCls}" data-index="${i}" data-path="${escapeHTML(t.absolutePath)}" draggable="true" title="${escapeHTML(t.absolutePath)}">
         ${star}
         <span class="tab-name">${escapeHTML(basename)}</span>
         <button type="button" class="tab-close" data-close-index="${i}" title="Close">×</button>
@@ -823,14 +851,18 @@
   function showTabContextMenu(x, y, idx, path) {
     closeTabContextMenu();
     const fav = (appState.favorites || []).some((f) => f.absolutePath === path);
-    const items = [
-      { label: fav ? 'Remove from Favorites' : 'Add to Favorites', action: 'toggle-fav' },
-      { type: 'separator' },
-      { label: 'Close', action: 'close' },
-      { label: 'Close Others', action: 'close-others' },
-      { type: 'separator' },
-      { label: 'Reveal in Finder', action: 'reveal' }
-    ];
+    const tab = (appState.tabs || [])[idx] || {};
+    const items = [];
+    if (tab.isPreview) {
+      items.push({ label: 'Keep Open', action: 'keep-open' });
+      items.push({ type: 'separator' });
+    }
+    items.push({ label: fav ? 'Remove from Favorites' : 'Add to Favorites', action: 'toggle-fav' });
+    items.push({ type: 'separator' });
+    items.push({ label: 'Close', action: 'close' });
+    items.push({ label: 'Close Others', action: 'close-others' });
+    items.push({ type: 'separator' });
+    items.push({ label: 'Reveal in Finder', action: 'reveal' });
     const html = items.map((i) =>
       i.type === 'separator'
         ? `<div class="ctx-sep"></div>`
@@ -849,7 +881,15 @@
       btn.addEventListener('click', async () => {
         const action = btn.dataset.action;
         closeTabContextMenu();
-        if (action === 'toggle-fav') {
+        if (action === 'keep-open') {
+          const next = (appState.tabs || []).slice();
+          if (next[idx]) {
+            next[idx] = { ...next[idx], isPreview: false };
+            await window.docket.setTabs(next);
+            appState = await window.docket.getState();
+            renderTabStrip();
+          }
+        } else if (action === 'toggle-fav') {
           if (fav) await window.docket.removeFavorite(path);
           else await window.docket.addFavorite(path);
           appState = await window.docket.getState();
@@ -1046,10 +1086,26 @@
     return { tabs, activeTabIndex };
   }
 
-  function openOrSwitchAt(absolutePath) {
+  function openOrSwitchAt(absolutePath, opts) {
+    opts = opts || {};
+    const preview = Boolean(opts.preview);
     const tabs = (appState.tabs || []).slice();
     const existing = tabs.findIndex((t) => t.absolutePath === absolutePath);
-    if (existing !== -1) return { tabs, activeTabIndex: existing };
+    if (existing !== -1) {
+      if (!preview && tabs[existing].isPreview) {
+        tabs[existing] = { ...tabs[existing], isPreview: false };
+      }
+      return { tabs, activeTabIndex: existing };
+    }
+    if (preview) {
+      const previewIdx = tabs.findIndex((t) => t.isPreview);
+      if (previewIdx !== -1) {
+        tabs[previewIdx] = { ...tabs[previewIdx], absolutePath };
+        return { tabs, activeTabIndex: previewIdx };
+      }
+      tabs.push({ absolutePath, isPreview: true });
+      return { tabs, activeTabIndex: tabs.length - 1 };
+    }
     tabs.push({ absolutePath });
     return { tabs, activeTabIndex: tabs.length - 1 };
   }
