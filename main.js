@@ -627,7 +627,9 @@ ipcMain.handle('docket:getVersion', async () => ({
 
 ipcMain.handle('docket:checkForUpdates', async () => {
   try {
+    await applyUpdaterPrefs();
     const r = await autoUpdater.checkForUpdates();
+    state.setLastUpdateCheck(Date.now()).catch(() => {});
     return { ok: true, updateInfo: r ? r.updateInfo : null };
   } catch (e) {
     return { ok: false, error: e && e.message ? e.message : String(e) };
@@ -653,7 +655,10 @@ ipcMain.handle('docket:installUpdate', async () => {
 function setupAutoUpdater() {
   autoUpdater.autoDownload = false;
   autoUpdater.autoInstallOnAppQuit = false;
-  autoUpdater.allowPrerelease = IS_DEV_BUILD;
+
+  // Apply prefs from state (read synchronously via the cached snapshot;
+  // user changes via Settings will re-apply on next check).
+  applyUpdaterPrefs().catch(() => {});
 
   autoUpdater.on('update-available', (info) => {
     if (process.platform === 'darwin' && app.dock) {
@@ -695,9 +700,24 @@ function setupAutoUpdater() {
   // Only actually poll if this is a packaged build. In dev (electron .)
   // electron-updater will throw because there's no update feed.
   if (app.isPackaged) {
-    setTimeout(() => { autoUpdater.checkForUpdates().catch(() => {}); }, 5000);
-    setInterval(() => { autoUpdater.checkForUpdates().catch(() => {}); }, 4 * 60 * 60 * 1000);
+    setTimeout(() => { triggerCheckIfEnabled(); }, 5000);
+    setInterval(() => { triggerCheckIfEnabled(); }, 4 * 60 * 60 * 1000);
   }
+}
+
+async function applyUpdaterPrefs() {
+  const s = await state.read();
+  autoUpdater.allowPrerelease = Boolean(s.allowPrerelease) || IS_DEV_BUILD;
+}
+
+async function triggerCheckIfEnabled() {
+  try {
+    const s = await state.read();
+    if (!s.autoCheck) return;
+    await applyUpdaterPrefs();
+    autoUpdater.checkForUpdates().catch(() => {});
+    state.setLastUpdateCheck(Date.now()).catch(() => {});
+  } catch {}
 }
 
 ipcMain.handle('docket:openSettings', async () => { openSettingsDirectly(); });
