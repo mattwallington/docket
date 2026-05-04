@@ -414,7 +414,7 @@
       pendingOutsideRootBanner = null;
       currentIsOutsideRoot = false;
     }
-    if (activePlayKey) { tts.stop(); activePlayKey = null; }
+    stopActivePlayback();
     currentPath = absolutePath;
     window.docket.setActivePath(absolutePath);
     // Tab routing: open or switch to the tab for this path, then persist.
@@ -666,6 +666,7 @@
     tabStrip.querySelectorAll('.tab-close').forEach((btn) => {
       btn.addEventListener('click', async (e) => {
         e.stopPropagation();
+        stopActivePlayback();
         const idx = Number(btn.dataset.closeIndex);
         const next = closeTabAt(idx);
         await window.docket.setTabs(next.tabs);
@@ -743,6 +744,7 @@
           renderSidebar();
           renderStatusBar();
         } else if (action === 'close') {
+          stopActivePlayback();
           const next = closeTabAt(idx);
           await window.docket.setTabs(next.tabs);
           await window.docket.setActiveTabIndex(next.activeTabIndex);
@@ -756,6 +758,7 @@
             await openFile(appState.tabs[next.activeTabIndex].absolutePath, { skipRecents: true, skipTabRoute: true });
           }
         } else if (action === 'close-others') {
+          stopActivePlayback();
           const onlyThis = [appState.tabs[idx]];
           await window.docket.setTabs(onlyThis);
           await window.docket.setActiveTabIndex(0);
@@ -1017,6 +1020,13 @@
     activePlayKey = null;
   }
 
+  function stopActivePlayback() {
+    if (activePlayKey) {
+      tts.stop();
+      activePlayKey = null;
+    }
+  }
+
   function wrapWords(container, text) {
     const tokens = [];
     const re = /\S+|\s+/g;
@@ -1083,6 +1093,7 @@
     if (!currentPath) return;
     const isInAllFiles = allFiles.some((f) => f.absolutePath === currentPath);
     if (!isInAllFiles && !currentIsOutsideRoot) {
+      stopActivePlayback();
       content.innerHTML = `<div class="empty-state"><h1>File was moved or deleted</h1></div>`;
       currentPath = null;
       window.docket.setActivePath(null);
@@ -1100,6 +1111,7 @@
       const nextScroller = content.querySelector('.doc-scroll');
       if (nextScroller) nextScroller.scrollTop = savedScroll;
     } catch {
+      stopActivePlayback();
       content.innerHTML = `<div class="empty-state"><h1>File was moved or deleted</h1></div>`;
       currentPath = null;
       currentIsOutsideRoot = false;
