@@ -57,6 +57,22 @@ Files open in tabs at the top of the window. Click a file in the sidebar to open
 
 The favorite star (★) shows in the tab when the file is favorited; otherwise the tab is bare. Toggle via the right-click menu or the `☆ Favorite` button in the status bar.
 
+## View modes
+
+Each document can be viewed as **Checklist**, **Markdown**, or **Raw** (syntax-highlighted source). Pick via the view-mode button next to the A−/A+ scale buttons in the tab strip. The choice is **session-only** — closing the app forgets it.
+
+The global default for new documents is set in **Preferences → Appearance → Default view** (`Auto` / `Checklist` / `Markdown`). `Auto` detects the right view from frontmatter and `- [ ]` markers; the explicit options always pick that view regardless of content.
+
+## Sidebar file browser
+
+The Files section is a tabbed file browser. Each tab is a configured root. Click a tab to switch which root's tree is visible. Drag a tab to reorder. Click `+` to add a new root via a directory picker. Right-click a tab to rename, remove, or reveal in Finder.
+
+## Preview vs. permanent tabs
+
+Single-click a file in the sidebar to open it as a *preview* tab (rendered in italic in the tab strip). Single-clicking a different file replaces the preview tab's contents. Double-click to open as a permanent tab (italic clears). To pin the current preview tab as permanent, right-click it and pick `Keep Open`.
+
+CLI / Finder / `Open with Docket` always open as permanent tabs.
+
 ## Status bar
 
 The bottom row shows the active file's path, creation time, and last-modified time. The right side has a view-mode dropdown (`Auto` / `Checklist` / `Markdown`) that's saved per file, plus the favorite toggle. When an update is available, a green pill appears in the status bar — click it to download, click again to restart.
