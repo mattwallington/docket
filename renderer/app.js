@@ -414,8 +414,7 @@
       pendingOutsideRootBanner = null;
       currentIsOutsideRoot = false;
     }
-    if (typeof tts !== 'undefined') tts.stop();
-    activePlayKey = null;
+    if (activePlayKey) { tts.stop(); activePlayKey = null; }
     currentPath = absolutePath;
     window.docket.setActivePath(absolutePath);
     // Tab routing: open or switch to the tab for this path, then persist.
