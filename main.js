@@ -653,6 +653,9 @@ function setupAutoUpdater() {
   autoUpdater.allowPrerelease = IS_DEV_BUILD;
 
   autoUpdater.on('update-available', (info) => {
+    if (process.platform === 'darwin' && app.dock) {
+      try { app.dock.setBadge('•'); } catch {}
+    }
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('docket:update-state', {
         status: 'available',
@@ -661,18 +664,24 @@ function setupAutoUpdater() {
     }
   });
 
+  autoUpdater.on('update-not-available', () => {
+    if (process.platform === 'darwin' && app.dock) {
+      try { app.dock.setBadge(''); } catch {}
+    }
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('docket:update-state', { status: 'none' });
+    }
+  });
+
   autoUpdater.on('update-downloaded', (info) => {
+    if (process.platform === 'darwin' && app.dock) {
+      try { app.dock.setBadge('•'); } catch {}
+    }
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('docket:update-state', {
         status: 'ready',
         version: info.version
       });
-    }
-  });
-
-  autoUpdater.on('update-not-available', () => {
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('docket:update-state', { status: 'none' });
     }
   });
 
