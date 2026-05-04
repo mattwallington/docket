@@ -569,3 +569,18 @@ details.root.unavailable summary { opacity: 0.5; cursor: default; }
   border: 1px dashed rgba(255, 255, 255, 0.12);
 }
 .file-tab-add:hover { background: rgba(255, 255, 255, 0.05); color: var(--text); border-color: rgba(255, 255, 255, 0.25); }
+
+.raw-view {
+  margin: 0;
+  padding: 18px 24px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  background: var(--code-bg);
+  border-radius: 6px;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--text);
+}
+.raw-view .hljs { background: transparent; padding: 0; }

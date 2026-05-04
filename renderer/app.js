@@ -573,6 +573,8 @@
     try {
       if (mode === 'checklist') {
         bodyHTML = renderChecklist(meta, body);
+      } else if (mode === 'raw') {
+        bodyHTML = renderRaw(text);
       } else {
         bodyHTML = `<div class="prose">${md(text)}</div>`;
       }
@@ -1111,6 +1113,16 @@
       stack.push(p);
     }
     return '/' + stack.join('/');
+  }
+
+  function renderRaw(text) {
+    let highlighted;
+    try {
+      highlighted = window.hljs.highlight(text, { language: 'markdown' }).value;
+    } catch {
+      highlighted = escapeHTML(text);
+    }
+    return `<pre class="raw-view"><code class="hljs language-markdown">${highlighted}</code></pre>`;
   }
 
   function renderChecklist(meta, body) {
