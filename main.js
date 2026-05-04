@@ -550,8 +550,8 @@ ipcMain.handle('docket:removeFavorite', async (_e, p) => {
   const r = await state.removeFavorite(p);
   return r;
 });
-ipcMain.handle('docket:setOverride', async (_e, p, mode) => await state.setOverride(p, mode));
-ipcMain.handle('docket:clearOverride', async (_e, p) => await state.clearOverride(p));
+ipcMain.handle('docket:setDefaultView', async (_e, v) => await state.setDefaultView(v));
+ipcMain.handle('docket:setActiveBrowseRoot', async (_e, v) => await state.setActiveBrowseRoot(v));
 ipcMain.handle('docket:setSortBy', async (_e, sortBy) => await state.setSortBy(sortBy));
 ipcMain.handle('docket:setSearchMode', async (_e, mode) => await state.setSearchMode(mode));
 ipcMain.handle('docket:setDocScale', async (_e, v) => await state.setDocScale(v));
