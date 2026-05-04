@@ -64,18 +64,30 @@
   }
 
   async function renderAppearance() {
+    const s = await window.docket.getState();
     panes.appearance.innerHTML = `
       <h2>Appearance</h2>
-      <label>Theme:
+      <label class="pref-row">Theme:
         <select id="theme-select">
           <option value="system"${cfg.theme === 'system' ? ' selected' : ''}>System</option>
           <option value="dark"${cfg.theme === 'dark' ? ' selected' : ''}>Dark</option>
           <option value="light"${cfg.theme === 'light' ? ' selected' : ''}>Light</option>
         </select>
       </label>
+      <label class="pref-row">Default view:
+        <select id="default-view-select">
+          <option value="auto"${s.defaultView === 'auto' ? ' selected' : ''}>Auto (detect from content)</option>
+          <option value="checklist"${s.defaultView === 'checklist' ? ' selected' : ''}>Checklist</option>
+          <option value="markdown"${s.defaultView === 'markdown' ? ' selected' : ''}>Markdown</option>
+        </select>
+      </label>
+      <p class="pref-hint">Per-document view (including Raw) is set via the view-mode button in the tab strip and lasts for this session only.</p>
     `;
     panes.appearance.querySelector('#theme-select').addEventListener('change', async (e) => {
       cfg = await window.docket.updateConfig({ theme: e.target.value });
+    });
+    panes.appearance.querySelector('#default-view-select').addEventListener('change', async (e) => {
+      await window.docket.setDefaultView(e.target.value);
     });
   }
 
