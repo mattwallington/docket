@@ -9,6 +9,14 @@ const targets = [
   {
     src: path.resolve(__dirname, '../node_modules/dompurify/dist/purify.min.js'),
     dst: path.resolve(__dirname, '../renderer/vendor/purify.min.js')
+  },
+  {
+    src: path.resolve(__dirname, '../node_modules/@highlightjs/cdn-assets/highlight.min.js'),
+    dst: path.resolve(__dirname, '../renderer/vendor/highlight.min.js')
+  },
+  {
+    src: path.resolve(__dirname, '../node_modules/@highlightjs/cdn-assets/styles/atom-one-dark.min.css'),
+    dst: path.resolve(__dirname, '../renderer/vendor/highlight.css')
   }
 ];
 
