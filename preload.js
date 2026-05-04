@@ -62,6 +62,7 @@ contextBridge.exposeInMainWorld('docket', {
   setFavoritesOrder: (paths) => ipcRenderer.invoke('docket:setFavoritesOrder', paths),
   setTabs: (tabs) => ipcRenderer.invoke('docket:setTabs', tabs),
   setActiveTabIndex: (idx) => ipcRenderer.invoke('docket:setActiveTabIndex', idx),
+  revealInFinder: (absolutePath) => ipcRenderer.invoke('docket:revealInFinder', absolutePath),
   downloadUpdate: () => ipcRenderer.invoke('docket:downloadUpdate'),
   installUpdate: () => ipcRenderer.invoke('docket:installUpdate'),
   onUpdateState: (cb) => {

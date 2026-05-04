@@ -685,12 +685,96 @@
     });
 
     wireTabDrag();
+    wireTabContextMenu();
 
     // Scale button click handlers (moved from old file-head)
     const dec = document.getElementById('scale-down');
     const inc = document.getElementById('scale-up');
     if (dec) dec.addEventListener('click', () => adjustDocScale(-DOC_SCALE_STEP));
     if (inc) inc.addEventListener('click', () => adjustDocScale(DOC_SCALE_STEP));
+  }
+
+  function wireTabContextMenu() {
+    tabStrip.querySelectorAll('.tab').forEach((el) => {
+      el.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        const idx = Number(el.dataset.index);
+        const path = el.dataset.path;
+        showTabContextMenu(e.clientX, e.clientY, idx, path);
+      });
+    });
+  }
+
+  let contextMenuEl = null;
+  function showTabContextMenu(x, y, idx, path) {
+    closeTabContextMenu();
+    const fav = (appState.favorites || []).some((f) => f.absolutePath === path);
+    const items = [
+      { label: fav ? 'Remove from Favorites' : 'Add to Favorites', action: 'toggle-fav' },
+      { type: 'separator' },
+      { label: 'Close', action: 'close' },
+      { label: 'Close Others', action: 'close-others' },
+      { type: 'separator' },
+      { label: 'Reveal in Finder', action: 'reveal' }
+    ];
+    const html = items.map((i) =>
+      i.type === 'separator'
+        ? `<div class="ctx-sep"></div>`
+        : `<button type="button" class="ctx-item" data-action="${i.action}">${escapeHTML(i.label)}</button>`
+    ).join('');
+
+    const el = document.createElement('div');
+    el.className = 'tab-context-menu';
+    el.style.left = x + 'px';
+    el.style.top = y + 'px';
+    el.innerHTML = html;
+    document.body.appendChild(el);
+    contextMenuEl = el;
+
+    el.querySelectorAll('.ctx-item').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const action = btn.dataset.action;
+        closeTabContextMenu();
+        if (action === 'toggle-fav') {
+          if (fav) await window.docket.removeFavorite(path);
+          else await window.docket.addFavorite(path);
+          appState = await window.docket.getState();
+          renderTabStrip();
+          renderSidebar();
+          renderStatusBar();
+        } else if (action === 'close') {
+          const next = closeTabAt(idx);
+          await window.docket.setTabs(next.tabs);
+          await window.docket.setActiveTabIndex(next.activeTabIndex);
+          appState = await window.docket.getState();
+          if (next.activeTabIndex === -1) {
+            currentPath = null;
+            content.innerHTML = `<div class="empty-state"><h1>Docket</h1><p>Select a file from the sidebar.</p></div>`;
+            renderTabStrip();
+            renderStatusBar();
+          } else {
+            await openFile(appState.tabs[next.activeTabIndex].absolutePath, { skipRecents: true, skipTabRoute: true });
+          }
+        } else if (action === 'close-others') {
+          const onlyThis = [appState.tabs[idx]];
+          await window.docket.setTabs(onlyThis);
+          await window.docket.setActiveTabIndex(0);
+          appState = await window.docket.getState();
+          await openFile(path, { skipRecents: true, skipTabRoute: true });
+        } else if (action === 'reveal') {
+          await window.docket.revealInFinder(path);
+        }
+      });
+    });
+
+    // Click outside closes the menu.
+    setTimeout(() => {
+      document.addEventListener('click', closeTabContextMenu, { once: true });
+    }, 0);
+  }
+
+  function closeTabContextMenu() {
+    if (contextMenuEl) { contextMenuEl.remove(); contextMenuEl = null; }
   }
 
   function wireTabDrag() {

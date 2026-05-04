@@ -702,6 +702,10 @@ ipcMain.handle('docket:setActivePath', async (_e, absolutePath) => {
   updateRevealMenuState();
 });
 
+ipcMain.handle('docket:revealInFinder', async (_e, absolutePath) => {
+  if (typeof absolutePath === 'string' && absolutePath) shell.showItemInFolder(absolutePath);
+});
+
 // App lifecycle
 
 app.on('open-file', (event, filePath) => {
