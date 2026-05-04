@@ -37,14 +37,6 @@ All config lives in `~/.docket/`:
 - `⌘,` — open Preferences
 - `⌘Q` — quit
 
-## Menu bar
-
-Docket installs a menu-bar (tray) icon. Click it to:
-
-- *Show Docket* — bring the window forward (works after closing/hiding).
-- Pick from your *Favorites* and *Recents* — opens the file in the window directly.
-- *Quit Docket*.
-
 ## Open a specific file
 
 ```sh

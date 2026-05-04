@@ -9,7 +9,6 @@ app.setName('Docket');
 
 const config = require('./lib/config.js');
 const state = require('./lib/state.js');
-const tray = require('./lib/tray.js');
 const { walkRoot } = require('./lib/files.js');
 const { searchContent, cancelSearch } = require('./lib/search.js');
 const { resolveOpenRequest } = require('./lib/open-path.js');
@@ -401,7 +400,6 @@ ipcMain.handle('docket:addRootForPath', async (_e, dirPath) => {
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send('docket:config-change', next);
   }
-  tray.rebuildMenu().catch(() => {});
   return next;
 });
 
@@ -531,7 +529,6 @@ ipcMain.handle('docket:updateConfig', async (_e, partial) => {
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send('docket:config-change', next);
   }
-  tray.rebuildMenu().catch(() => {});
   return next;
 });
 
@@ -539,22 +536,18 @@ ipcMain.handle('docket:getState', async () => await state.read());
 ipcMain.handle('docket:updateState', async (_e, partial) => await state.write(partial));
 ipcMain.handle('docket:addRecent', async (_e, p) => {
   const r = await state.addRecent(p);
-  tray.rebuildMenu().catch(() => {});
   return r;
 });
 ipcMain.handle('docket:removeRecent', async (_e, p) => {
   const r = await state.removeRecent(p);
-  tray.rebuildMenu().catch(() => {});
   return r;
 });
 ipcMain.handle('docket:addFavorite', async (_e, p) => {
   const r = await state.addFavorite(p);
-  tray.rebuildMenu().catch(() => {});
   return r;
 });
 ipcMain.handle('docket:removeFavorite', async (_e, p) => {
   const r = await state.removeFavorite(p);
-  tray.rebuildMenu().catch(() => {});
   return r;
 });
 ipcMain.handle('docket:setOverride', async (_e, p, mode) => await state.setOverride(p, mode));
@@ -725,16 +718,6 @@ app.whenReady().then(async () => {
   createMainWindow();
   setupAutoUpdater();
 
-  if (!process.env.DOCKET_SECURITY_CHECK && !process.env.DOCKET_GOLDEN_PATH && !process.env.DOCKET_BUILD_ICON) {
-    tray.installTray({
-      getState: () => state.read(),
-      getConfig: () => config.read(),
-      onSelect: (absolutePath) => handleOpenPath(absolutePath, { fromCli: false }).catch(() => {}),
-      onShowWindow: () => bringWindowForward(),
-      onQuit: () => app.quit()
-    });
-  }
-
   const initialArg = parseCliMarkdownArg(process.argv);
   if (initialArg) {
     handleOpenPath(initialArg, { fromCli: true }).catch(() => {});
@@ -750,6 +733,5 @@ app.on('window-all-closed', () => {
 });
 
 app.on('will-quit', async () => {
-  tray.destroy();
   if (watcher) await watcher.close();
 });
