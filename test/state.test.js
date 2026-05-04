@@ -17,7 +17,6 @@ beforeEach(() => {
 test('read() returns empty state on first run', async () => {
   const s = await state.read();
   assert.deepEqual(s.recents, []);
-  assert.deepEqual(s.overrides, {});
   assert.equal(s.sortBy, 'name');
 });
 
@@ -41,18 +40,6 @@ test('addRecent() caps at 10 and moves repeats to front', async () => {
   assert.equal(s.recents.length, 10);
 });
 
-test('setOverride persists per-file view mode', async () => {
-  await state.setOverride('/x.md', 'markdown');
-  const s = await state.read();
-  assert.equal(s.overrides['/x.md'], 'markdown');
-});
-
-test('clearOverride removes entry', async () => {
-  await state.setOverride('/x.md', 'markdown');
-  await state.clearOverride('/x.md');
-  const s = await state.read();
-  assert.equal(s.overrides['/x.md'], undefined);
-});
 
 test('setSortBy persists valid values', async () => {
   await state.setSortBy('modified');
@@ -271,4 +258,51 @@ test('setLastUpdateCheck accepts null to clear', async () => {
 test('setLastUpdateCheck rejects non-integer non-null', async () => {
   await assert.rejects(() => state.setLastUpdateCheck('not a number'), /Invalid lastUpdateCheck/);
   await assert.rejects(() => state.setLastUpdateCheck(1.5), /Invalid lastUpdateCheck/);
+});
+
+test('defaultState exposes defaultView=auto and activeBrowseRoot=null', async () => {
+  const s = await state.read();
+  assert.equal(s.defaultView, 'auto');
+  assert.equal(s.activeBrowseRoot, null);
+});
+
+test('defaultState no longer exposes overrides', async () => {
+  const s = await state.read();
+  assert.equal(s.overrides, undefined);
+});
+
+test('setDefaultView accepts auto|checklist|markdown', async () => {
+  await state.setDefaultView('checklist');
+  let s = await state.read();
+  assert.equal(s.defaultView, 'checklist');
+  await state.setDefaultView('markdown');
+  s = await state.read();
+  assert.equal(s.defaultView, 'markdown');
+  await state.setDefaultView('auto');
+  s = await state.read();
+  assert.equal(s.defaultView, 'auto');
+});
+
+test('setDefaultView rejects unknown values', async () => {
+  await assert.rejects(() => state.setDefaultView('raw'), /Invalid defaultView/);
+  await assert.rejects(() => state.setDefaultView(''), /Invalid defaultView/);
+});
+
+test('setActiveBrowseRoot accepts string or null', async () => {
+  await state.setActiveBrowseRoot('docs');
+  let s = await state.read();
+  assert.equal(s.activeBrowseRoot, 'docs');
+  await state.setActiveBrowseRoot(null);
+  s = await state.read();
+  assert.equal(s.activeBrowseRoot, null);
+});
+
+test('setActiveBrowseRoot rejects non-string non-null', async () => {
+  await assert.rejects(() => state.setActiveBrowseRoot(42), /Invalid activeBrowseRoot/);
+});
+
+test('setTabs accepts isPreview on entries', async () => {
+  await state.setTabs([{ absolutePath: '/a.md', isPreview: true }]);
+  const s = await state.read();
+  assert.equal(s.tabs[0].isPreview, true);
 });
