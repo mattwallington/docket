@@ -8,6 +8,9 @@
   const search = document.getElementById('search-box');
   const content = document.getElementById('content');
 
+  const tts = new window.TTSPlayer();
+  let activePlayKey = null;
+
   marked.setOptions({ gfm: true, breaks: false });
   const md = (text) => DOMPurify.sanitize(marked.parse(text || ''));
 
@@ -411,6 +414,8 @@
       pendingOutsideRootBanner = null;
       currentIsOutsideRoot = false;
     }
+    if (typeof tts !== 'undefined') tts.stop();
+    activePlayKey = null;
     currentPath = absolutePath;
     window.docket.setActivePath(absolutePath);
     // Tab routing: open or switch to the tab for this path, then persist.
@@ -479,6 +484,45 @@
         if (e.target.closest('.task-play')) return;
         if (e.target.closest('a')) return;
         row.classList.toggle('expanded');
+      });
+    });
+
+    content.querySelectorAll('.task-play').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const key = btn.dataset.taskKey;
+        const row = btn.closest('.row.expandable');
+        const inner = row ? row.querySelector('.task-instructions-inner') : null;
+        if (!inner) return;
+
+        // If we're already playing THIS task, toggle pause/resume.
+        if (activePlayKey === key) {
+          if (tts.isPaused()) {
+            tts.resume();
+            btn.classList.add('playing');
+            btn.textContent = '❙❙';
+          } else {
+            tts.pause();
+            btn.textContent = '▶';
+          }
+          return;
+        }
+
+        // Otherwise: stop any active playback, expand this row, wrap the
+        // text in word-spans, and start playing.
+        if (activePlayKey) clearActivePlay();
+        if (!row.classList.contains('expanded')) row.classList.add('expanded');
+
+        const text = inner.textContent;
+        wrapWords(inner, text);
+        activePlayKey = key;
+        btn.classList.add('playing');
+        btn.textContent = '❙❙';
+
+        tts.play(text, {
+          onBoundary: (charIndex) => highlightWordAt(inner, charIndex),
+          onEnd: () => clearActivePlay()
+        });
       });
     });
 
@@ -880,6 +924,38 @@
     catch { return new Set(); }
   }
   function saveCollapsed(s) { localStorage.setItem(COLLAPSE_KEY, JSON.stringify([...s])); }
+
+  function clearActivePlay() {
+    document.querySelectorAll('.task-play.playing').forEach((b) => {
+      b.classList.remove('playing');
+      b.textContent = '▶';
+    });
+    document.querySelectorAll('.task-instructions-inner .word.active').forEach((w) => w.classList.remove('active'));
+    activePlayKey = null;
+  }
+
+  function wrapWords(container, text) {
+    const tokens = [];
+    const re = /\S+|\s+/g;
+    let m;
+    while ((m = re.exec(text)) !== null) {
+      tokens.push({ text: m[0], offset: m.index, isWhitespace: /^\s+$/.test(m[0]) });
+    }
+    const html = tokens.map((t) =>
+      t.isWhitespace ? escapeHTML(t.text) : `<span class="word" data-offset="${t.offset}">${escapeHTML(t.text)}</span>`
+    ).join('');
+    container.innerHTML = html;
+  }
+
+  function highlightWordAt(container, charIndex) {
+    let bestSpan = null;
+    container.querySelectorAll('.word').forEach((span) => {
+      const offset = Number(span.dataset.offset);
+      if (offset <= charIndex) bestSpan = span;
+    });
+    container.querySelectorAll('.word.active').forEach((s) => s.classList.remove('active'));
+    if (bestSpan) bestSpan.classList.add('active');
+  }
 
   function escapeHTML(s) {
     return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));

@@ -445,4 +445,6 @@ details.root.unavailable summary { opacity: 0.5; cursor: default; }
 }
 .task-instructions-inner > *:first-child { margin-top: 0; }
 .task-instructions-inner > *:last-child { margin-bottom: 0; }
+.word { transition: background-color 0.05s ease; }
+.word.active { background: rgba(34, 197, 94, 0.25); border-radius: 2px; }
 .frontmatter-warning { padding: 6px 24px 0; }
