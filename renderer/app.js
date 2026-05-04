@@ -417,6 +417,7 @@
       if (!skipRecents) await window.docket.addRecent(absolutePath);
       appState = await window.docket.getState();
       renderFile(absolutePath, text);
+      renderStatusBar();
       await renderBrowse();
     } catch (e) {
       content.innerHTML = `<div class="empty-state"><h1>Failed to load</h1><p>${escapeHTML(String(e))}</p><button type="button" id="retry-load" class="retry-btn">Retry</button></div>`;
@@ -434,28 +435,15 @@
     const looksLikeFrontmatter = text.startsWith('---\n');
     const frontmatterWarning = looksLikeFrontmatter && Object.keys(meta).length === 0;
 
-    const basename = absolutePath.split('/').pop();
-    const entry = allFiles.find((f) => f.absolutePath === absolutePath);
-    const mtime = entry ? entry.mtime : null;
-    const updatedHTML = mtime
-      ? `<span class="updated" data-mtime="${mtime}" title="${escapeHTML(formatAbsolute(mtime))}">Updated ${escapeHTML(formatRelative(mtime))}</span>`
-      : '';
-    const fav = isFavorite(absolutePath);
-    const starHTML = `<button type="button" id="fav-toggle" class="star-btn${fav ? ' on' : ''}" title="${fav ? 'Remove from favorites' : 'Add to favorites'}" aria-pressed="${fav}">${fav ? '★' : '☆'}</button>`;
-    const scaleHTML = `<div class="scale-ctl" role="group" aria-label="Text size">
-      <button type="button" id="scale-down" class="scale-btn scale-btn-sm" title="Smaller text">A</button>
-      <button type="button" id="scale-up" class="scale-btn scale-btn-lg" title="Larger text">A</button>
-    </div>`;
-    const headerParts = [];
-    headerParts.push(`<header class="file-head"><div class="breadcrumb">${starHTML}<span>${escapeHTML(basename)}</span>${frontmatterWarning ? ' <span class="chip-warn">⚠ invalid frontmatter</span>' : ''}${updatedHTML}</div>`);
-    headerParts.push(`<div class="file-head-right">${scaleHTML}<div class="view-toggle"><label>View: <select id="view-mode"><option value="checklist"${mode === 'checklist' ? ' selected' : ''}>Checklist</option><option value="markdown"${mode === 'markdown' ? ' selected' : ''}>Markdown</option></select></label></div></div>`);
-    headerParts.push('</header>');
-
     let outsideBannerHTML = '';
     if (pendingOutsideRootBanner && pendingOutsideRootBanner.parentDir) {
       const dir = pendingOutsideRootBanner.parentDir;
       outsideBannerHTML = `<div class="outside-root-banner" data-parent="${escapeHTML(dir)}"><span>This file isn't inside a configured root. Open it now and add <code>${escapeHTML(dir)}</code> as a root for next time?</span><div class="banner-actions"><button type="button" class="banner-add">Add root</button><button type="button" class="banner-dismiss">Dismiss</button></div></div>`;
     }
+
+    const frontmatterWarningHTML = frontmatterWarning
+      ? `<div class="frontmatter-warning"><span class="chip-warn">⚠ invalid frontmatter</span></div>`
+      : '';
 
     let bodyHTML;
     try {
@@ -468,7 +456,7 @@
       bodyHTML = `<div class="empty-state"><h1>Render failed</h1><p>${escapeHTML(String(e))}</p></div>`;
     }
 
-    content.innerHTML = headerParts.join('') + outsideBannerHTML + '<div class="doc-scroll"><div class="doc-body">' + bodyHTML + '</div></div>';
+    content.innerHTML = outsideBannerHTML + frontmatterWarningHTML + '<div class="doc-scroll"><div class="doc-body">' + bodyHTML + '</div></div>';
     wireCollapsibles(absolutePath);
     wireMarkdownLinks(absolutePath);
 
@@ -491,31 +479,99 @@
         if (banner) banner.remove();
       });
     }
+  }
 
-    updateScaleButtons();
-    const dec = document.getElementById('scale-down');
-    const inc = document.getElementById('scale-up');
-    if (dec) dec.addEventListener('click', () => adjustDocScale(-DOC_SCALE_STEP));
-    if (inc) inc.addEventListener('click', () => adjustDocScale(DOC_SCALE_STEP));
+  // ---- Status bar ----
 
-    const toggle = document.getElementById('view-mode');
-    toggle.addEventListener('change', async () => {
-      await window.docket.setOverride(absolutePath, toggle.value);
+  const statusBar = document.getElementById('status-bar');
+  let updateState = null; // { status: 'available' | 'downloading' | 'ready' | 'none', version }
+
+  function renderStatusBar() {
+    if (!currentPath) {
+      statusBar.innerHTML = '';
+      return;
+    }
+    const entry = allFiles.find((f) => f.absolutePath === currentPath);
+    const mtime = entry ? entry.mtime : null;
+    const ctime = entry ? entry.ctime : null;
+    const updatedHTML = mtime ? `Updated ${escapeHTML(formatRelative(mtime))}` : '';
+    const createdHTML = ctime ? `Created ${escapeHTML(formatRelative(ctime))}` : '';
+
+    const override = appState.overrides[currentPath];
+    const viewModeValue = override || 'auto';
+
+    const fav = isFavorite(currentPath);
+    const starText = fav ? '★ Favorited' : '☆ Favorite';
+
+    const updatePillHTML = updateState && updateState.status && updateState.status !== 'none'
+      ? `<button type="button" class="update-pill" id="update-pill">${escapeHTML(updateLabel(updateState))}</button>`
+      : '';
+
+    statusBar.innerHTML = `
+      <div class="status-left">
+        <span class="status-path" title="${escapeHTML(currentPath)}">${escapeHTML(currentPath)}</span>
+        ${createdHTML ? `<span>· ${createdHTML}</span>` : ''}
+        ${updatedHTML ? `<span>· ${updatedHTML}</span>` : ''}
+      </div>
+      <div class="status-right">
+        ${updatePillHTML}
+        <select id="view-mode-select" aria-label="View mode">
+          <option value="auto"${viewModeValue === 'auto' ? ' selected' : ''}>Auto</option>
+          <option value="checklist"${viewModeValue === 'checklist' ? ' selected' : ''}>Checklist</option>
+          <option value="markdown"${viewModeValue === 'markdown' ? ' selected' : ''}>Markdown</option>
+        </select>
+        <button type="button" class="status-bar-control${fav ? ' active' : ''}" id="favorite-toggle">${escapeHTML(starText)}</button>
+      </div>
+    `;
+
+    const select = document.getElementById('view-mode-select');
+    select.addEventListener('change', async () => {
+      const v = select.value;
+      if (v === 'auto') await window.docket.clearOverride(currentPath);
+      else await window.docket.setOverride(currentPath, v);
       appState = await window.docket.getState();
-      renderFile(absolutePath, text);
+      const text = await window.docket.readFile(currentPath);
+      renderFile(currentPath, text);
+      renderStatusBar();
     });
 
-    const star = document.getElementById('fav-toggle');
-    if (star) {
-      star.addEventListener('click', async () => {
-        if (isFavorite(absolutePath)) await window.docket.removeFavorite(absolutePath);
-        else await window.docket.addFavorite(absolutePath);
-        appState = await window.docket.getState();
-        renderFile(absolutePath, text);
-        renderSidebar();
-      });
+    const star = document.getElementById('favorite-toggle');
+    star.addEventListener('click', async () => {
+      if (isFavorite(currentPath)) await window.docket.removeFavorite(currentPath);
+      else await window.docket.addFavorite(currentPath);
+      appState = await window.docket.getState();
+      renderStatusBar();
+      renderSidebar();
+      if (typeof renderTabStrip === 'function') renderTabStrip();
+    });
+
+    if (updateState && updateState.status && updateState.status !== 'none') {
+      const pill = document.getElementById('update-pill');
+      if (pill) pill.addEventListener('click', () => onUpdatePillClick());
     }
   }
+
+  function updateLabel(s) {
+    if (s.status === 'available') return `↓ Download v${s.version}`;
+    if (s.status === 'downloading') return `↓ Downloading v${s.version}…`;
+    if (s.status === 'ready') return `↻ Restart to install v${s.version}`;
+    return '';
+  }
+
+  async function onUpdatePillClick() {
+    if (!updateState) return;
+    if (updateState.status === 'available') {
+      await window.docket.downloadUpdate();
+    } else if (updateState.status === 'ready') {
+      await window.docket.installUpdate();
+    }
+  }
+
+  // Subscribe to update-state from the main process.
+  window.docket.onUpdateState((payload) => {
+    updateState = payload;
+    renderStatusBar();
+  });
 
   function wireMarkdownLinks(absolutePath) {
     const dir = absolutePath.replace(/\/[^/]*$/, '');
@@ -692,6 +748,7 @@
       const prevScroller = content.querySelector('.doc-scroll');
       const savedScroll = prevScroller ? prevScroller.scrollTop : 0;
       renderFile(currentPath, text);
+      renderStatusBar();
       const nextScroller = content.querySelector('.doc-scroll');
       if (nextScroller) nextScroller.scrollTop = savedScroll;
     } catch {
@@ -721,6 +778,7 @@
       }
     }
     await renderBrowse();
+    renderStatusBar();
   });
 
   // ---- Menu-driven actions (accelerators live on the menu items) ----
@@ -747,6 +805,7 @@
   window.docket.onSortByChanged(async (sortBy) => {
     appState = { ...appState, sortBy };
     await renderBrowse();
+    renderStatusBar();
   });
 
   window.docket.onOpenPath(async ({ absolutePath, inRoot, parentDir }) => {
@@ -756,6 +815,7 @@
   });
 
   await renderBrowse();
+  renderStatusBar();
 
   if (appState.recents.length) openFile(appState.recents[0].absolutePath);
 })();

@@ -47,13 +47,14 @@ test('walkRoot skips dotdirs and node_modules', async () => {
   assert.deepEqual(paths, ['keep.md']);
 });
 
-test('walkRoot returns rootId, absolutePath, mtime, size', async () => {
+test('walkRoot returns rootId, absolutePath, mtime, ctime, size', async () => {
   touch('x.md', 'hello');
   const { entries } = await walkRoot({ id: 'test-root', path: TEST_ROOT, label: 'X' });
   assert.equal(entries[0].rootId, 'test-root');
   assert.equal(entries[0].absolutePath, path.join(TEST_ROOT, 'x.md'));
   assert.equal(entries[0].size, 5);
   assert.ok(typeof entries[0].mtime === 'number');
+  assert.ok(typeof entries[0].ctime === 'number');
 });
 
 test('walkRoot returns [] if root does not exist', async () => {

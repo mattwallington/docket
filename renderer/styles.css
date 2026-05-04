@@ -410,3 +410,4 @@ details.root.unavailable summary { opacity: 0.5; cursor: default; }
   font: inherit;
 }
 .update-pill:hover { filter: brightness(1.1); }
+.frontmatter-warning { padding: 6px 24px 0; }
