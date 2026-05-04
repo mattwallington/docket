@@ -278,7 +278,7 @@
               skipRecents: btn.dataset.skipRecents === '1',
               preview: true
             });
-          }, 250);
+          }, 350);
         }
       });
     });

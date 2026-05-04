@@ -48,8 +48,13 @@
       btn.addEventListener('click', async () => {
         const i = Number(btn.closest('.root-row').dataset.index);
         if (cfg.roots.length === 1) { alert('At least one root is required.'); return; }
+        const removingId = cfg.roots[i].id;
         cfg.roots.splice(i, 1);
         cfg = await window.docket.updateConfig({ roots: cfg.roots });
+        const s = await window.docket.getState();
+        if (s.activeBrowseRoot === removingId) {
+          await window.docket.setActiveBrowseRoot(null);
+        }
         renderRoots();
       });
     });

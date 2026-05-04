@@ -28,7 +28,7 @@ To browse another directory (e.g. `~/docs/`), open Preferences (`⌘,`) → Root
 All config lives in `~/.docket/`:
 
 - `docket.json` — configured roots, theme preference.
-- `state.json` — recents list, per-file view-mode overrides.
+- `state.json` — recents, favorites, tabs, sidebar layout, default view, update prefs.
 - `projects/` — default root; add your own or replace with other roots via Preferences.
 
 ## Keyboard
@@ -75,7 +75,7 @@ CLI / Finder / `Open with Docket` always open as permanent tabs.
 
 ## Status bar
 
-The bottom row shows the active file's path, creation time, and last-modified time. The right side has a view-mode dropdown (`Auto` / `Checklist` / `Markdown`) that's saved per file, plus the favorite toggle. When an update is available, a green pill appears in the status bar — click it to download, click again to restart.
+The bottom row shows the active file's path, creation time, and last-modified time. The right side has the favorite toggle and (when an update is available) a green pill linking to the update.
 
 ## Task instructions + voice playback
 

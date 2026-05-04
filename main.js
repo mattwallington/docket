@@ -308,7 +308,7 @@ async function runGoldenPathAndExit() {
         const btn = document.querySelector('button[data-path=' + JSON.stringify(${JSON.stringify(targetPath)}) + ']');
         if (!btn) return { clicked: false };
         btn.click();
-        await new Promise((r) => setTimeout(r, 400));
+        await new Promise((r) => setTimeout(r, 500));
         return { clicked: true, contentHTML: document.getElementById('content').innerHTML };
       })()`);
       if (!step2.clicked || !step2.contentHTML.includes('INITIAL_MARKER')) {
