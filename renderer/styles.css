@@ -410,4 +410,39 @@ details.root.unavailable summary { opacity: 0.5; cursor: default; }
   font: inherit;
 }
 .update-pill:hover { filter: brightness(1.1); }
+
+.row.expandable { cursor: pointer; }
+.row.expandable:hover { background: rgba(255, 255, 255, 0.02); }
+.task-head { display: flex; align-items: flex-start; gap: 8px; }
+.task-head .title { flex: 1 1 auto; }
+.task-play {
+  flex-shrink: 0;
+  background: transparent; border: 1px solid var(--border);
+  color: var(--muted); cursor: pointer;
+  width: 22px; height: 22px;
+  border-radius: 11px; padding: 0;
+  font-size: 9px; line-height: 1;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.task-play:hover { color: var(--text); border-color: var(--text); }
+.task-play.playing { color: var(--done); border-color: var(--done); }
+
+.task-instructions {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.18s ease;
+}
+.row.expanded .task-instructions { max-height: 600px; }
+.task-instructions-inner {
+  padding: 8px 10px;
+  margin-top: 8px;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.03);
+  border-left: 2px solid var(--border);
+  border-radius: 0 4px 4px 0;
+}
+.task-instructions-inner > *:first-child { margin-top: 0; }
+.task-instructions-inner > *:last-child { margin-bottom: 0; }
 .frontmatter-warning { padding: 6px 24px 0; }

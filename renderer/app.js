@@ -473,6 +473,15 @@
     wireCollapsibles(absolutePath);
     wireMarkdownLinks(absolutePath);
 
+    content.querySelectorAll('.row.expandable').forEach((row) => {
+      row.addEventListener('click', (e) => {
+        // Don't toggle if the click came from the play button or a link inside the instructions.
+        if (e.target.closest('.task-play')) return;
+        if (e.target.closest('a')) return;
+        row.classList.toggle('expanded');
+      });
+    });
+
     const bannerAdd = content.querySelector('.outside-root-banner .banner-add');
     const bannerDismiss = content.querySelector('.outside-root-banner .banner-dismiss');
     if (bannerAdd) {
@@ -794,7 +803,7 @@
     let tasks = [];
     const flush = () => {
       if (!tasks.length) return;
-      parts.push(`<ul class="task-list">${tasks.map(renderTaskRow).join('')}</ul>`);
+      parts.push(`<ul class="task-list">${tasks.map((t, i) => renderTaskRow(t, docketParser.stableId(t.title + '::' + i))).join('')}</ul>`);
       tasks = [];
     };
     for (const it of items) {
@@ -805,11 +814,29 @@
     return parts.join('');
   }
 
-  function renderTaskRow(t) {
+  function renderTaskRow(t, taskKey) {
     const cls = t.status === 'done' ? 'done' : (t.blocked ? 'blocked' : 'pending');
     const icon = t.status === 'done' ? '✓' : (t.blocked ? '⏸' : '○');
-    const noteHTML = t.note ? `<div class="note">${md(t.note)}</div>` : '';
-    return `<li class="row ${cls}"><span class="icon">${icon}</span><div class="content"><div class="title">${escapeHTML(t.title)}</div>${noteHTML}</div></li>`;
+    const inlineNoteHTML = t.inlineNote ? `<div class="note">${md(t.inlineNote)}</div>` : '';
+    const hasInstructions = !!(t.instructions && t.instructions.trim());
+    const instructionsHTML = hasInstructions
+      ? `<div class="task-instructions" data-task-key="${escapeHTML(taskKey)}"><div class="task-instructions-inner">${md(t.instructions)}</div></div>`
+      : '';
+    const playButtonHTML = hasInstructions
+      ? `<button type="button" class="task-play" data-task-key="${escapeHTML(taskKey)}" title="Play instructions" aria-label="Play instructions">▶</button>`
+      : '';
+    const expandableCls = hasInstructions ? ' expandable' : '';
+    return `<li class="row ${cls}${expandableCls}" data-task-key="${escapeHTML(taskKey)}">
+      <span class="icon">${icon}</span>
+      <div class="content">
+        <div class="task-head">
+          <div class="title">${escapeHTML(t.title)}</div>
+          ${playButtonHTML}
+        </div>
+        ${inlineNoteHTML}
+        ${instructionsHTML}
+      </div>
+    </li>`;
   }
 
   function renderPhase(phase, idPrefix) {
