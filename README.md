@@ -59,6 +59,20 @@ If the file isn't inside a configured root, Docket opens it for the current sess
 
 Sections (Favorites, Recents, Pinned READMEs, file browser) render as collapsible cards. Drag a card by its header to reorder; drag a favourite within its card to curate the order. Order and collapse state persist in `~/.docket/state.json`.
 
+## Tabs
+
+Files open in tabs at the top of the window. Click a file in the sidebar to open it as a new tab; if it's already open, docket switches to its tab. Drag a tab to reorder. Click `×` to close. Right-click a tab for `Add to Favorites`, `Close`, `Close Others`, `Reveal in Finder`. Open tabs persist across launches.
+
+The favorite star (★) shows in the tab when the file is favorited; otherwise the tab is bare. Toggle via the right-click menu or the `☆ Favorite` button in the status bar.
+
+## Status bar
+
+The bottom row shows the active file's path, creation time, and last-modified time. The right side has a view-mode dropdown (`Auto` / `Checklist` / `Markdown`) that's saved per file, plus the favorite toggle. When an update is available, a green pill appears in the status bar — click it to download, click again to restart.
+
+## Task instructions + voice playback
+
+Indented bullets under any task in a checklist file are now treated as detailed instructions. They render collapsed by default. Click the task row to slide them open. Click the play button (▶) to have docket read them aloud — pause / resume on subsequent clicks. The currently-spoken word is highlighted as it's read. Voice quality follows your macOS system voices (System Settings → Accessibility → Spoken Content lets you install premium voices like Ava, Evan, Samantha).
+
 ## Checklist format
 
 See [`format.md`](format.md) for the checklist markdown convention — frontmatter plus `## Phase` headings plus `- [ ] **ID. Title**` tasks.

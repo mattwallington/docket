@@ -76,16 +76,18 @@ The parser extracts:
   - The note contains "E2E pending" (convention for "plumbing verified, waiting on downstream work")
   - The enclosing section name contains "blocked"
 
-## Task details (optional)
+## Task details / instructions (optional)
 
-Indented bullets below a task are valid markdown and ignored by the viewer (they're for humans reading the source).
+Indented bullets or paragraphs below a task are detailed instructions for that task. They're hidden by default; clicking the task row in the viewer slides them open. A play button (▶) appears next to tasks with instructions — click it to have the instructions read aloud (uses your system's text-to-speech voices).
 
-```markdown
+````markdown
 - [ ] **4a. Existing provider + B2B invite (legacy format)**
   - URL: `?invitation_token=<UUID>`
   - Expected: sign-in → ActivateRolePage → `POST /add-role`
   - Verify: `custom:customer_uuid` added
-```
+````
+
+These bullets render as a slide-down details block. The em-dash note `— pending` (or `— passed Apr 20`, etc.) stays always-visible next to the title; only indented continuations are part of the collapsed instructions.
 
 ## Minimal working example
 
