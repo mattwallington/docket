@@ -1,7 +1,7 @@
 {
   "name": "docket",
   "productName": "Docket",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Native macOS markdown docs browser with checklist support",
   "main": "main.js",
   "author": "Matt Wallington",
