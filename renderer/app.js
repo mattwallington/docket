@@ -84,30 +84,55 @@
 
   let lastBrowseHTML = '';
 
+  function pickActiveBrowseRootId() {
+    if (!cfg.roots || !cfg.roots.length) return null;
+    const persisted = appState.activeBrowseRoot;
+    if (persisted && cfg.roots.some((r) => r.id === persisted)) return persisted;
+    return cfg.roots[0].id;
+  }
+
   async function renderBrowse() {
+    if (!cfg.roots || !cfg.roots.length) {
+      lastBrowseHTML = `
+        <div class="file-tabs">
+          <div class="file-tab-add" title="Add root…">+</div>
+        </div>
+        <div class="empty-hint">No roots configured. Click + to add one.</div>
+      `;
+      if (!search.value.trim()) renderSidebar();
+      return;
+    }
     const statuses = await window.docket.getRootStatuses();
     const pinnedReadmes = new Set((tocs || []).map((t) => t.readmePath));
-    const byRoot = new Map();
-    for (const e of allFiles) {
-      if (pinnedReadmes.has(e.absolutePath)) continue;
-      if (!byRoot.has(e.rootId)) byRoot.set(e.rootId, []);
-      byRoot.get(e.rootId).push(e);
-    }
-    const parts = [];
-    for (const root of cfg.roots) {
-      const files = (byRoot.get(root.id) || []).slice().sort(compareFiles);
-      const st = statuses[root.id] || { capped: false, status: 'ok' };
-      const unavailableCls = st.status !== 'ok' ? ' unavailable' : '';
-      const label = `${escapeHTML(root.label)}${st.status === 'missing' ? ' <span class="chip-warn">missing</span>' : ''}${st.status === 'permission-denied' ? ' <span class="chip-warn">permission denied</span>' : ''}`;
-      const cappedBanner = st.capped ? `<div class="cap-warning">⚠ More than 5,000 files — sidebar listing may be incomplete. Content search still covers everything.</div>` : '';
-      if (st.status !== 'ok') {
-        parts.push(`<details class="root${unavailableCls}" title="${escapeHTML(root.path)}"><summary>${label}</summary></details>`);
-        continue;
-      }
+    const activeRootId = pickActiveBrowseRootId();
+    const tabs = cfg.roots.map((r) => {
+      const cls = r.id === activeRootId ? ' active' : '';
+      return `<div class="file-tab${cls}" data-root-id="${escapeHTML(r.id)}" draggable="true" title="${escapeHTML(r.path)}">${escapeHTML(r.label)}</div>`;
+    }).join('');
+    const tabStripHTML = `
+      <div class="file-tabs">
+        ${tabs}
+        <div class="file-tab-add" title="Add root…">+</div>
+      </div>
+    `;
+
+    const root = cfg.roots.find((r) => r.id === activeRootId);
+    const status = statuses[activeRootId] || { capped: false, status: 'ok' };
+    let bodyHTML;
+    if (status.status !== 'ok') {
+      const chip = status.status === 'missing'
+        ? `<span class="chip-warn">missing</span>`
+        : `<span class="chip-warn">permission denied</span>`;
+      bodyHTML = `<div class="empty-hint">${escapeHTML(root.path)} ${chip}</div>`;
+    } else {
+      const files = allFiles.filter((e) => e.rootId === activeRootId && !pinnedReadmes.has(e.absolutePath))
+        .slice().sort(compareFiles);
+      const cappedBanner = status.capped ? `<div class="cap-warning">⚠ More than 5,000 files — sidebar listing may be incomplete. Content search still covers everything.</div>` : '';
       const tree = buildTree(files);
-      parts.push(`<details class="root" open><summary>${label}</summary>${cappedBanner}${renderTree(tree)}</details>`);
+      bodyHTML = cappedBanner + renderTree(tree);
     }
-    lastBrowseHTML = parts.join('');
+
+    lastBrowseHTML = tabStripHTML + bodyHTML;
     if (!search.value.trim()) renderSidebar();
   }
 
@@ -253,8 +278,40 @@
         renderSidebar();
       });
     });
+    // File-browser tab clicks (NEW)
+    sections.querySelectorAll('.file-tab').forEach((el) => {
+      el.addEventListener('click', async () => {
+        const rootId = el.dataset.rootId;
+        if (rootId === appState.activeBrowseRoot) return;
+        await window.docket.setActiveBrowseRoot(rootId);
+        appState = await window.docket.getState();
+        await renderBrowse();
+      });
+      el.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        showRootTabContextMenu(e.clientX, e.clientY, el.dataset.rootId);
+      });
+    });
+
+    // File-browser + (add root) button (NEW)
+    sections.querySelectorAll('.file-tab-add').forEach((el) => {
+      el.addEventListener('click', async () => {
+        const picked = await window.docket.pickDirectory();
+        if (!picked) return;
+        await window.docket.addRootForPath(picked);
+        const fresh = await window.docket.getConfig();
+        const newRoot = fresh.roots[fresh.roots.length - 1];
+        if (newRoot) {
+          await window.docket.setActiveBrowseRoot(newRoot.id);
+          appState = await window.docket.getState();
+          await renderBrowse();
+        }
+      });
+    });
+
     wireSectionDrag();
     wireFavoritesDrag();
+    wireFileTabDrag();
   }
 
   function wireSectionDrag() {
@@ -332,6 +389,43 @@
         await window.docket.setFavoritesOrder(order);
         appState = await window.docket.getState();
         renderSidebar();
+      });
+    });
+  }
+
+  function wireFileTabDrag() {
+    const tabs = Array.from(sections.querySelectorAll('.file-tab'));
+    let dragSrc = null;
+    tabs.forEach((tab) => {
+      tab.addEventListener('dragstart', (e) => {
+        dragSrc = tab;
+        tab.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        try { e.dataTransfer.setData('text/plain', tab.dataset.rootId); } catch {}
+      });
+      tab.addEventListener('dragend', () => {
+        tab.classList.remove('dragging');
+        tabs.forEach((t) => t.classList.remove('drop-target'));
+        dragSrc = null;
+      });
+      tab.addEventListener('dragover', (e) => {
+        if (!dragSrc || dragSrc === tab) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        tabs.forEach((t) => t.classList.toggle('drop-target', t === tab));
+      });
+      tab.addEventListener('drop', async (e) => {
+        e.preventDefault();
+        if (!dragSrc || dragSrc === tab) return;
+        const fromId = dragSrc.dataset.rootId;
+        const toId = tab.dataset.rootId;
+        const order = cfg.roots.slice();
+        const fromIdx = order.findIndex((r) => r.id === fromId);
+        const toIdx = order.findIndex((r) => r.id === toId);
+        if (fromIdx === -1 || toIdx === -1) return;
+        order.splice(toIdx, 0, order.splice(fromIdx, 1)[0]);
+        cfg = await window.docket.updateConfig({ roots: order });
+        await renderBrowse();
       });
     });
   }
@@ -778,6 +872,66 @@
 
   function closeTabContextMenu() {
     if (contextMenuEl) { contextMenuEl.remove(); contextMenuEl = null; }
+  }
+
+  function showRootTabContextMenu(x, y, rootId) {
+    closeTabContextMenu();
+    const root = cfg.roots.find((r) => r.id === rootId);
+    if (!root) return;
+    const items = [
+      { label: 'Rename…', action: 'rename' },
+      { label: 'Remove', action: 'remove' },
+      { type: 'separator' },
+      { label: 'Reveal in Finder', action: 'reveal' }
+    ];
+    const html = items.map((i) =>
+      i.type === 'separator'
+        ? `<div class="ctx-sep"></div>`
+        : `<button type="button" class="ctx-item" data-action="${i.action}">${escapeHTML(i.label)}</button>`
+    ).join('');
+
+    const el = document.createElement('div');
+    el.className = 'tab-context-menu';
+    el.style.left = x + 'px';
+    el.style.top = y + 'px';
+    el.innerHTML = html;
+    document.body.appendChild(el);
+    contextMenuEl = el;
+
+    el.querySelectorAll('.ctx-item').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const action = btn.dataset.action;
+        closeTabContextMenu();
+        if (action === 'rename') {
+          const next = prompt('Rename root', root.label);
+          if (next === null) return;
+          const trimmed = next.trim();
+          if (!trimmed) return;
+          const updated = cfg.roots.map((r) => r.id === rootId ? { ...r, label: trimmed } : r);
+          cfg = await window.docket.updateConfig({ roots: updated });
+          await renderBrowse();
+        } else if (action === 'remove') {
+          if (cfg.roots.length === 1) {
+            alert('At least one root is required.');
+            return;
+          }
+          if (!confirm(`Remove root "${root.label}"? Files won't be deleted; the root just won't appear in docket.`)) return;
+          const updated = cfg.roots.filter((r) => r.id !== rootId);
+          cfg = await window.docket.updateConfig({ roots: updated });
+          if (appState.activeBrowseRoot === rootId) {
+            await window.docket.setActiveBrowseRoot(null);
+            appState = await window.docket.getState();
+          }
+          await renderBrowse();
+        } else if (action === 'reveal') {
+          await window.docket.revealInFinder(root.path);
+        }
+      });
+    });
+
+    setTimeout(() => {
+      document.addEventListener('click', closeTabContextMenu, { once: true });
+    }, 0);
   }
 
   function wireTabDrag() {
