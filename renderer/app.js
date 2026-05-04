@@ -701,8 +701,9 @@
     const fav = isFavorite(currentPath);
     const starText = fav ? '★ Favorited' : '☆ Favorite';
 
+    const pillCls = updateState && updateState.status === 'error' ? ' error' : '';
     const updatePillHTML = updateState && updateState.status && updateState.status !== 'none'
-      ? `<button type="button" class="update-pill" id="update-pill">${escapeHTML(updateLabel(updateState))}</button>`
+      ? `<button type="button" class="update-pill${pillCls}" id="update-pill">${escapeHTML(updateLabel(updateState))}</button>`
       : '';
 
     statusBar.innerHTML = `
@@ -729,7 +730,13 @@
 
     if (updateState && updateState.status && updateState.status !== 'none') {
       const pill = document.getElementById('update-pill');
-      if (pill) pill.addEventListener('click', () => onUpdatePillClick());
+      if (pill) {
+        if (updateState.status === 'downloading') {
+          pill.disabled = true;
+        } else {
+          pill.addEventListener('click', () => onUpdatePillClick());
+        }
+      }
     }
   }
 
@@ -1124,14 +1131,27 @@
 
   function updateLabel(s) {
     if (s.status === 'available') return `↓ Download v${s.version}`;
-    if (s.status === 'downloading') return `↓ Downloading v${s.version}…`;
+    if (s.status === 'downloading') {
+      const pct = typeof s.percent === 'number' ? Math.round(s.percent) : null;
+      const speed = typeof s.bytesPerSecond === 'number' ? formatBytesPerSec(s.bytesPerSecond) : null;
+      if (pct !== null && speed) return `↓ Downloading ${pct}% (${speed})`;
+      if (pct !== null) return `↓ Downloading ${pct}%`;
+      return `↓ Downloading…`;
+    }
     if (s.status === 'ready') return `↻ Restart to install v${s.version}`;
+    if (s.status === 'error') return `⚠ Download failed — Retry`;
     return '';
+  }
+
+  function formatBytesPerSec(bps) {
+    if (!bps || bps < 1024) return `${Math.round(bps || 0)} B/s`;
+    if (bps < 1024 * 1024) return `${(bps / 1024).toFixed(1)} KB/s`;
+    return `${(bps / (1024 * 1024)).toFixed(1)} MB/s`;
   }
 
   async function onUpdatePillClick() {
     if (!updateState) return;
-    if (updateState.status === 'available') {
+    if (updateState.status === 'available' || updateState.status === 'error') {
       await window.docket.downloadUpdate();
     } else if (updateState.status === 'ready') {
       await window.docket.installUpdate();
