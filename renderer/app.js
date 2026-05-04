@@ -22,6 +22,12 @@
   let pendingOutsideRootBanner = null;
   let currentIsOutsideRoot = false;
 
+  // Session-only per-document view-mode overrides. Map<absolutePath, 'checklist'|'markdown'|'raw'>.
+  // Cleared on app restart by design.
+  const sessionViewOverrides = new Map();
+  let lastResolvedViewMode = null;
+  let viewModePopoverEl = null;
+
   function isFavorite(absolutePath) {
     return (appState.favorites || []).some((f) => f.absolutePath === absolutePath);
   }
@@ -537,10 +543,17 @@
     }
   }
 
+  function resolveViewMode(absolutePath, meta, body) {
+    if (sessionViewOverrides.has(absolutePath)) return sessionViewOverrides.get(absolutePath);
+    const def = appState.defaultView || 'auto';
+    if (def === 'auto') return docketParser.detectViewMode({ meta, body });
+    return def;
+  }
+
   function renderFile(absolutePath, text) {
     const { meta, body } = docketParser.parseFrontmatter(text);
-    const override = appState.overrides[absolutePath];
-    const mode = override || docketParser.detectViewMode({ meta, body });
+    const mode = resolveViewMode(absolutePath, meta, body);
+    lastResolvedViewMode = mode;
 
     // Frontmatter warning: has delimiters but meta empty → malformed
     const looksLikeFrontmatter = text.startsWith('---\n');
@@ -656,9 +669,6 @@
     const updatedHTML = mtime ? `Updated ${escapeHTML(formatRelative(mtime))}` : '';
     const createdHTML = ctime ? `Created ${escapeHTML(formatRelative(ctime))}` : '';
 
-    const override = appState.overrides[currentPath];
-    const viewModeValue = override || 'auto';
-
     const fav = isFavorite(currentPath);
     const starText = fav ? '★ Favorited' : '☆ Favorite';
 
@@ -674,25 +684,9 @@
       </div>
       <div class="status-right">
         ${updatePillHTML}
-        <select id="view-mode-select" aria-label="View mode">
-          <option value="auto"${viewModeValue === 'auto' ? ' selected' : ''}>Auto</option>
-          <option value="checklist"${viewModeValue === 'checklist' ? ' selected' : ''}>Checklist</option>
-          <option value="markdown"${viewModeValue === 'markdown' ? ' selected' : ''}>Markdown</option>
-        </select>
         <button type="button" class="status-bar-control${fav ? ' active' : ''}" id="favorite-toggle">${escapeHTML(starText)}</button>
       </div>
     `;
-
-    const select = document.getElementById('view-mode-select');
-    select.addEventListener('change', async () => {
-      const v = select.value;
-      if (v === 'auto') await window.docket.clearOverride(currentPath);
-      else await window.docket.setOverride(currentPath, v);
-      appState = await window.docket.getState();
-      const text = await window.docket.readFile(currentPath);
-      renderFile(currentPath, text);
-      renderStatusBar();
-    });
 
     const star = document.getElementById('favorite-toggle');
     star.addEventListener('click', async () => {
@@ -735,11 +729,26 @@
           <button type="button" id="scale-down" class="scale-btn scale-btn-sm" title="Smaller text">A</button>
           <button type="button" id="scale-up" class="scale-btn scale-btn-lg" title="Larger text">A</button>
         </div>
+        <button type="button" id="view-mode-btn" class="view-mode-btn" title="View mode">
+          <span class="vm-icon">${viewModeIcon(currentEffectiveViewMode())}</span>
+        </button>
       </div>
     `;
 
     wireTabStrip();
     updateScaleButtons();
+  }
+
+  function viewModeIcon(mode) {
+    if (mode === 'checklist') return '☑';
+    if (mode === 'raw') return '&lt;/&gt;';
+    return '📄'; // markdown
+  }
+
+  function currentEffectiveViewMode() {
+    if (!currentPath) return 'markdown';
+    if (sessionViewOverrides.has(currentPath)) return sessionViewOverrides.get(currentPath);
+    return lastResolvedViewMode || 'markdown';
   }
 
   function wireTabStrip() {
@@ -787,6 +796,14 @@
     const inc = document.getElementById('scale-up');
     if (dec) dec.addEventListener('click', () => adjustDocScale(-DOC_SCALE_STEP));
     if (inc) inc.addEventListener('click', () => adjustDocScale(DOC_SCALE_STEP));
+
+    const vmBtn = document.getElementById('view-mode-btn');
+    if (vmBtn) {
+      vmBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleViewModePopover(vmBtn);
+      });
+    }
   }
 
   function wireTabContextMenu() {
@@ -872,6 +889,48 @@
 
   function closeTabContextMenu() {
     if (contextMenuEl) { contextMenuEl.remove(); contextMenuEl = null; }
+  }
+
+  function toggleViewModePopover(anchorBtn) {
+    if (viewModePopoverEl) { closeViewModePopover(); return; }
+    const current = currentEffectiveViewMode();
+    const tiles = [
+      { mode: 'checklist', label: 'Checklist', icon: '☑' },
+      { mode: 'markdown', label: 'Markdown', icon: '📄' },
+      { mode: 'raw', label: 'Raw', icon: '&lt;/&gt;' }
+    ].map((t) => `
+      <div class="view-mode-tile${t.mode === current ? ' active' : ''}" data-mode="${t.mode}">
+        <span class="view-mode-tile-icon">${t.icon}</span>
+        <span class="view-mode-tile-label">${escapeHTML(t.label)}</span>
+      </div>
+    `).join('');
+    const el = document.createElement('div');
+    el.className = 'view-mode-popover';
+    el.innerHTML = tiles;
+    anchorBtn.appendChild(el);
+    viewModePopoverEl = el;
+
+    el.querySelectorAll('.view-mode-tile').forEach((tile) => {
+      tile.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const mode = tile.dataset.mode;
+        if (currentPath) {
+          sessionViewOverrides.set(currentPath, mode);
+          const text = await window.docket.readFile(currentPath);
+          renderFile(currentPath, text);
+          renderTabStrip();
+        }
+        closeViewModePopover();
+      });
+    });
+
+    setTimeout(() => {
+      document.addEventListener('click', closeViewModePopover, { once: true });
+    }, 0);
+  }
+
+  function closeViewModePopover() {
+    if (viewModePopoverEl) { viewModePopoverEl.remove(); viewModePopoverEl = null; }
   }
 
   function showRootTabContextMenu(x, y, rootId) {
