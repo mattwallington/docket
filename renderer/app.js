@@ -2,6 +2,7 @@
   const SIDEBAR_KEY = 'docket:sidebar-hidden';
   const COLLAPSE_KEY = 'docket:collapsed-phases';
 
+  const tabStrip = document.getElementById('tab-strip');
   const sections = document.getElementById('sidebar-sections');
   const results = document.getElementById('sidebar-results');
   const search = document.getElementById('search-box');
@@ -405,7 +406,7 @@
 
   // ---- File opening + rendering ----
 
-  async function openFile(absolutePath, { skipRecents = false, keepBanner = false } = {}) {
+  async function openFile(absolutePath, { skipRecents = false, keepBanner = false, skipTabRoute = false } = {}) {
     if (!keepBanner) {
       pendingOutsideRootBanner = null;
       currentIsOutsideRoot = false;
@@ -418,6 +419,7 @@
       appState = await window.docket.getState();
       renderFile(absolutePath, text);
       renderStatusBar();
+      renderTabStrip();
       await renderBrowse();
     } catch (e) {
       content.innerHTML = `<div class="empty-state"><h1>Failed to load</h1><p>${escapeHTML(String(e))}</p><button type="button" id="retry-load" class="retry-btn">Retry</button></div>`;
@@ -549,6 +551,154 @@
       const pill = document.getElementById('update-pill');
       if (pill) pill.addEventListener('click', () => onUpdatePillClick());
     }
+  }
+
+  // ---- Tab strip ----
+
+  function renderTabStrip() {
+    const tabs = appState.tabs || [];
+    const activeIdx = appState.activeTabIndex >= 0 ? appState.activeTabIndex : -1;
+
+    const tabHTML = tabs.map((t, i) => {
+      const basename = t.absolutePath.split('/').pop();
+      const fav = (appState.favorites || []).some((f) => f.absolutePath === t.absolutePath);
+      const star = fav ? '<span class="tab-star" aria-hidden="true">★</span>' : '';
+      const activeCls = i === activeIdx ? ' active' : '';
+      return `<div class="tab${activeCls}" data-index="${i}" data-path="${escapeHTML(t.absolutePath)}" draggable="true" title="${escapeHTML(t.absolutePath)}">
+        ${star}
+        <span class="tab-name">${escapeHTML(basename)}</span>
+        <button type="button" class="tab-close" data-close-index="${i}" title="Close">×</button>
+      </div>`;
+    }).join('');
+
+    tabStrip.innerHTML = `
+      <div class="tab-list">${tabHTML}</div>
+      <div class="tab-strip-controls">
+        <div class="scale-ctl" role="group" aria-label="Text size">
+          <button type="button" id="scale-down" class="scale-btn scale-btn-sm" title="Smaller text">A</button>
+          <button type="button" id="scale-up" class="scale-btn scale-btn-lg" title="Larger text">A</button>
+        </div>
+      </div>
+    `;
+
+    wireTabStrip();
+    updateScaleButtons();
+  }
+
+  function wireTabStrip() {
+    // Activate tab on click
+    tabStrip.querySelectorAll('.tab').forEach((el) => {
+      el.addEventListener('click', async (e) => {
+        if (e.target.closest('.tab-close')) return;
+        const idx = Number(el.dataset.index);
+        if (idx === appState.activeTabIndex) return;
+        await window.docket.setActiveTabIndex(idx);
+        appState = await window.docket.getState();
+        const path = appState.tabs[idx].absolutePath;
+        await openFile(path, { skipRecents: true, skipTabRoute: true });
+      });
+    });
+
+    // Close button
+    tabStrip.querySelectorAll('.tab-close').forEach((btn) => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const idx = Number(btn.dataset.closeIndex);
+        const next = closeTabAt(idx);
+        await window.docket.setTabs(next.tabs);
+        await window.docket.setActiveTabIndex(next.activeTabIndex);
+        appState = await window.docket.getState();
+        if (next.activeTabIndex === -1) {
+          currentPath = null;
+          window.docket.setActivePath(null);
+          content.innerHTML = `<div class="empty-state"><h1>Docket</h1><p>Select a file from the sidebar.</p></div>`;
+          renderStatusBar();
+          renderTabStrip();
+          return;
+        }
+        const path = appState.tabs[next.activeTabIndex].absolutePath;
+        await openFile(path, { skipRecents: true, skipTabRoute: true });
+      });
+    });
+
+    wireTabDrag();
+
+    // Scale button click handlers (moved from old file-head)
+    const dec = document.getElementById('scale-down');
+    const inc = document.getElementById('scale-up');
+    if (dec) dec.addEventListener('click', () => adjustDocScale(-DOC_SCALE_STEP));
+    if (inc) inc.addEventListener('click', () => adjustDocScale(DOC_SCALE_STEP));
+  }
+
+  function wireTabDrag() {
+    const cards = Array.from(tabStrip.querySelectorAll('.tab'));
+    let dragSrc = null;
+    cards.forEach((card) => {
+      card.addEventListener('dragstart', (e) => {
+        dragSrc = card;
+        card.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        try { e.dataTransfer.setData('text/plain', card.dataset.path); } catch {}
+      });
+      card.addEventListener('dragend', () => {
+        card.classList.remove('dragging');
+        cards.forEach((c) => c.classList.remove('drop-target'));
+        dragSrc = null;
+      });
+      card.addEventListener('dragover', (e) => {
+        if (!dragSrc || dragSrc === card) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        cards.forEach((c) => c.classList.toggle('drop-target', c === card));
+      });
+      card.addEventListener('drop', async (e) => {
+        e.preventDefault();
+        if (!dragSrc || dragSrc === card) return;
+        const from = Number(dragSrc.dataset.index);
+        const to = Number(card.dataset.index);
+        const next = reorderTabsAt(from, to);
+        await window.docket.setTabs(next.tabs);
+        await window.docket.setActiveTabIndex(next.activeTabIndex);
+        appState = await window.docket.getState();
+        renderTabStrip();
+      });
+    });
+  }
+
+  // Local copies of the tab manager logic. They MUST stay in sync with
+  // lib/tabs.js (which has tests). Renderer can't require lib/tabs.js
+  // without a bundler, so we duplicate.
+  function closeTabAt(index) {
+    const tabs = (appState.tabs || []).slice();
+    if (index < 0 || index >= tabs.length) return { tabs, activeTabIndex: appState.activeTabIndex };
+    const wasActive = appState.activeTabIndex === index;
+    tabs.splice(index, 1);
+    let activeTabIndex;
+    if (tabs.length === 0) activeTabIndex = -1;
+    else if (wasActive) activeTabIndex = Math.min(index, tabs.length - 1);
+    else if (appState.activeTabIndex > index) activeTabIndex = appState.activeTabIndex - 1;
+    else activeTabIndex = appState.activeTabIndex;
+    return { tabs, activeTabIndex };
+  }
+
+  function openOrSwitchAt(absolutePath) {
+    const tabs = (appState.tabs || []).slice();
+    const existing = tabs.findIndex((t) => t.absolutePath === absolutePath);
+    if (existing !== -1) return { tabs, activeTabIndex: existing };
+    tabs.push({ absolutePath });
+    return { tabs, activeTabIndex: tabs.length - 1 };
+  }
+
+  function reorderTabsAt(from, to) {
+    const tabs = (appState.tabs || []).slice();
+    if (from < 0 || from >= tabs.length || to < 0 || to >= tabs.length || from === to) {
+      return { tabs, activeTabIndex: appState.activeTabIndex };
+    }
+    const activePath = appState.activeTabIndex >= 0 ? tabs[appState.activeTabIndex].absolutePath : null;
+    const [moved] = tabs.splice(from, 1);
+    tabs.splice(to, 0, moved);
+    const activeTabIndex = activePath ? tabs.findIndex((t) => t.absolutePath === activePath) : appState.activeTabIndex;
+    return { tabs, activeTabIndex };
   }
 
   function updateLabel(s) {
@@ -749,6 +899,7 @@
       const savedScroll = prevScroller ? prevScroller.scrollTop : 0;
       renderFile(currentPath, text);
       renderStatusBar();
+      renderTabStrip();
       const nextScroller = content.querySelector('.doc-scroll');
       if (nextScroller) nextScroller.scrollTop = savedScroll;
     } catch {
@@ -779,6 +930,7 @@
     }
     await renderBrowse();
     renderStatusBar();
+    renderTabStrip();
   });
 
   // ---- Menu-driven actions (accelerators live on the menu items) ----
@@ -806,6 +958,7 @@
     appState = { ...appState, sortBy };
     await renderBrowse();
     renderStatusBar();
+    renderTabStrip();
   });
 
   window.docket.onOpenPath(async ({ absolutePath, inRoot, parentDir }) => {
@@ -816,6 +969,13 @@
 
   await renderBrowse();
   renderStatusBar();
+  renderTabStrip();
 
-  if (appState.recents.length) openFile(appState.recents[0].absolutePath);
+  // Restore last-active tab if persisted; otherwise fall back to most-recent file.
+  if (appState.activeTabIndex >= 0 && appState.tabs[appState.activeTabIndex]) {
+    const path = appState.tabs[appState.activeTabIndex].absolutePath;
+    openFile(path, { skipRecents: true, skipTabRoute: true });
+  } else if (appState.recents.length) {
+    openFile(appState.recents[0].absolutePath);
+  }
 })();
