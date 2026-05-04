@@ -226,3 +226,49 @@ test('setActiveTabIndex rejects non-integer', async () => {
   await assert.rejects(() => state.setActiveTabIndex('1'), /Invalid activeTabIndex/);
   await assert.rejects(() => state.setActiveTabIndex(1.5), /Invalid activeTabIndex/);
 });
+
+test('defaultState exposes update prefs with sensible defaults', async () => {
+  const s = await state.read();
+  assert.equal(s.autoCheck, true);
+  assert.equal(s.allowPrerelease, false);
+  assert.equal(s.lastUpdateCheck, null);
+});
+
+test('setAutoCheck persists boolean', async () => {
+  await state.setAutoCheck(false);
+  let s = await state.read();
+  assert.equal(s.autoCheck, false);
+  await state.setAutoCheck(true);
+  s = await state.read();
+  assert.equal(s.autoCheck, true);
+});
+
+test('setAutoCheck coerces to boolean', async () => {
+  await state.setAutoCheck(1);
+  const s = await state.read();
+  assert.strictEqual(s.autoCheck, true);
+});
+
+test('setAllowPrerelease persists boolean', async () => {
+  await state.setAllowPrerelease(true);
+  const s = await state.read();
+  assert.equal(s.allowPrerelease, true);
+});
+
+test('setLastUpdateCheck accepts integer timestamps', async () => {
+  await state.setLastUpdateCheck(1700000000000);
+  const s = await state.read();
+  assert.equal(s.lastUpdateCheck, 1700000000000);
+});
+
+test('setLastUpdateCheck accepts null to clear', async () => {
+  await state.setLastUpdateCheck(1700000000000);
+  await state.setLastUpdateCheck(null);
+  const s = await state.read();
+  assert.equal(s.lastUpdateCheck, null);
+});
+
+test('setLastUpdateCheck rejects non-integer non-null', async () => {
+  await assert.rejects(() => state.setLastUpdateCheck('not a number'), /Invalid lastUpdateCheck/);
+  await assert.rejects(() => state.setLastUpdateCheck(1.5), /Invalid lastUpdateCheck/);
+});
