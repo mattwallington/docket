@@ -560,6 +560,9 @@ ipcMain.handle('docket:setSectionCollapsed', async (_e, id, collapsed) => await 
 ipcMain.handle('docket:setFavoritesOrder', async (_e, paths) => await state.setFavoritesOrder(paths));
 ipcMain.handle('docket:setTabs', async (_e, tabs) => await state.setTabs(tabs));
 ipcMain.handle('docket:setActiveTabIndex', async (_e, idx) => await state.setActiveTabIndex(idx));
+ipcMain.handle('docket:setAutoCheck', async (_e, v) => await state.setAutoCheck(v));
+ipcMain.handle('docket:setAllowPrerelease', async (_e, v) => await state.setAllowPrerelease(v));
+ipcMain.handle('docket:setLastUpdateCheck', async (_e, v) => await state.setLastUpdateCheck(v));
 
 // Returns, per root that has a top-level README.md, the absolute path to
 // that README. Renderer pins it as a 'Table of Contents' sidebar entry.

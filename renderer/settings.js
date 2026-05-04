@@ -81,27 +81,67 @@
 
   async function renderAbout() {
     const v = await window.docket.getVersion();
+    const s = await window.docket.getState();
+    const lastCheckedText = s.lastUpdateCheck
+      ? formatRelative(s.lastUpdateCheck)
+      : 'never';
+
     panes.about.innerHTML = `
       <h2>About</h2>
       <div class="about-line"><span class="label">Version</span>${escapeHTML(v.version)}</div>
       <div class="about-line"><span class="label">Channel</span>${escapeHTML(v.channel)}</div>
       ${v.buildDate ? `<div class="about-line"><span class="label">Build date</span>${escapeHTML(v.buildDate)}</div>` : ''}
+      <div class="about-line"><span class="label">Last checked</span>${escapeHTML(lastCheckedText)}</div>
       <div class="update-row">
         <button type="button" id="check-updates" class="update-btn">Check for updates…</button>
         <span id="update-status" class="update-status"></span>
+      </div>
+      <div class="prefs-block" style="margin-top: 24px;">
+        <label class="pref-toggle">
+          <input type="checkbox" id="auto-check" ${s.autoCheck ? 'checked' : ''}>
+          Automatically check for updates
+        </label>
+        <label class="pref-toggle">
+          <input type="checkbox" id="allow-prerelease" ${s.allowPrerelease ? 'checked' : ''}>
+          Include pre-release builds (dev channel)
+        </label>
       </div>
     `;
     const statusEl = document.getElementById('update-status');
     document.getElementById('check-updates').addEventListener('click', async () => {
       statusEl.textContent = 'Checking…';
       const r = await window.docket.checkForUpdates();
+      await window.docket.setLastUpdateCheck(Date.now());
       if (!r.ok) { statusEl.textContent = 'Error: ' + r.error; return; }
       if (!r.updateInfo || r.updateInfo.version === v.version) {
         statusEl.textContent = 'Up to date.';
       } else {
         statusEl.textContent = `v${r.updateInfo.version} available`;
       }
+      // Re-render to update the "Last checked" line
+      renderAbout();
     });
+    document.getElementById('auto-check').addEventListener('change', async (e) => {
+      await window.docket.setAutoCheck(e.target.checked);
+    });
+    document.getElementById('allow-prerelease').addEventListener('change', async (e) => {
+      await window.docket.setAllowPrerelease(e.target.checked);
+    });
+  }
+
+  function formatRelative(ms) {
+    const diff = Math.max(0, Date.now() - ms);
+    const s = Math.floor(diff / 1000);
+    if (s < 45) return 'just now';
+    const m = Math.floor(s / 60);
+    if (m < 60) return `${m} min ago`;
+    const h = Math.floor(m / 60);
+    if (h < 24) return `${h}h ago`;
+    const d = Math.floor(h / 24);
+    if (d < 7) return `${d}d ago`;
+    const w = Math.floor(d / 7);
+    if (w < 5) return `${w}w ago`;
+    return new Date(ms).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
   }
 
   renderRoots();
