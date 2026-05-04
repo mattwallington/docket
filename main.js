@@ -565,6 +565,8 @@ ipcMain.handle('docket:setDocScale', async (_e, v) => await state.setDocScale(v)
 ipcMain.handle('docket:setSectionOrder', async (_e, order) => await state.setSectionOrder(order));
 ipcMain.handle('docket:setSectionCollapsed', async (_e, id, collapsed) => await state.setSectionCollapsed(id, collapsed));
 ipcMain.handle('docket:setFavoritesOrder', async (_e, paths) => await state.setFavoritesOrder(paths));
+ipcMain.handle('docket:setTabs', async (_e, tabs) => await state.setTabs(tabs));
+ipcMain.handle('docket:setActiveTabIndex', async (_e, idx) => await state.setActiveTabIndex(idx));
 
 // Returns, per root that has a top-level README.md, the absolute path to
 // that README. Renderer pins it as a 'Table of Contents' sidebar entry.
@@ -636,40 +638,49 @@ ipcMain.handle('docket:checkForUpdates', async () => {
   }
 });
 
+ipcMain.handle('docket:downloadUpdate', async () => {
+  try {
+    autoUpdater.downloadUpdate();
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('docket:update-state', { status: 'downloading' });
+    }
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e && e.message ? e.message : String(e) };
+  }
+});
+
+ipcMain.handle('docket:installUpdate', async () => {
+  autoUpdater.quitAndInstall();
+});
+
 function setupAutoUpdater() {
   autoUpdater.autoDownload = false;
   autoUpdater.autoInstallOnAppQuit = false;
   autoUpdater.allowPrerelease = IS_DEV_BUILD;
 
   autoUpdater.on('update-available', (info) => {
-    dialog.showMessageBox({
-      type: 'info',
-      title: 'Update Available',
-      message: `Docket${IS_DEV_BUILD ? ' Dev' : ''} v${info.version} is available`,
-      detail: `You are currently running v${app.getVersion()}. Download now?`,
-      buttons: ['Download', 'Later'],
-      defaultId: 0
-    }).then((r) => {
-      if (r.response === 0) {
-        autoUpdater.downloadUpdate();
-        if (Notification.isSupported()) {
-          new Notification({ title: 'Docket', body: 'Downloading update in the background…' }).show();
-        }
-      }
-    });
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('docket:update-state', {
+        status: 'available',
+        version: info.version
+      });
+    }
   });
 
   autoUpdater.on('update-downloaded', (info) => {
-    dialog.showMessageBox({
-      type: 'info',
-      title: 'Update Ready',
-      message: `Docket v${info.version} has been downloaded`,
-      detail: 'Restart docket to install the update.',
-      buttons: ['Restart Now', 'Later'],
-      defaultId: 0
-    }).then((r) => {
-      if (r.response === 0) autoUpdater.quitAndInstall();
-    });
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('docket:update-state', {
+        status: 'ready',
+        version: info.version
+      });
+    }
+  });
+
+  autoUpdater.on('update-not-available', () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('docket:update-state', { status: 'none' });
+    }
   });
 
   autoUpdater.on('error', (err) => {
