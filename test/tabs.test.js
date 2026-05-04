@@ -46,3 +46,48 @@ test('reorderTabs moves a tab and keeps active pointer on the same logical tab',
   assert.deepEqual(r.tabs.map((t) => t.absolutePath), ['/b.md', '/c.md', '/a.md']);
   assert.equal(r.activeTabIndex, 0); // /b.md moved from 1 to 0
 });
+
+test('openOrSwitch with preview=true on empty list creates a preview tab', () => {
+  const r = openOrSwitch({ tabs: [], activeTabIndex: -1 }, '/a.md', { preview: true });
+  assert.equal(r.tabs.length, 1);
+  assert.equal(r.tabs[0].absolutePath, '/a.md');
+  assert.equal(r.tabs[0].isPreview, true);
+  assert.equal(r.activeTabIndex, 0);
+});
+
+test('openOrSwitch with preview=true replaces existing preview tab content', () => {
+  const r = openOrSwitch({ tabs: [{ absolutePath: '/a.md', isPreview: true }], activeTabIndex: 0 }, '/b.md', { preview: true });
+  assert.equal(r.tabs.length, 1);
+  assert.equal(r.tabs[0].absolutePath, '/b.md');
+  assert.equal(r.tabs[0].isPreview, true);
+  assert.equal(r.activeTabIndex, 0);
+});
+
+test('openOrSwitch with preview=false promotes existing preview to permanent', () => {
+  const r = openOrSwitch({ tabs: [{ absolutePath: '/a.md', isPreview: true }], activeTabIndex: 0 }, '/a.md', { preview: false });
+  assert.equal(r.tabs.length, 1);
+  assert.equal(r.tabs[0].isPreview, false);
+  assert.equal(r.activeTabIndex, 0);
+});
+
+test('openOrSwitch with preview=true on existing permanent tab just switches without downgrade', () => {
+  const r = openOrSwitch({ tabs: [{ absolutePath: '/a.md', isPreview: false }, { absolutePath: '/b.md' }], activeTabIndex: 1 }, '/a.md', { preview: true });
+  assert.equal(r.tabs.length, 2);
+  assert.equal(r.tabs[0].isPreview, false);
+  assert.equal(r.activeTabIndex, 0);
+});
+
+test('openOrSwitch with preview=true alongside an existing permanent tab adds a NEW preview tab', () => {
+  const r = openOrSwitch({ tabs: [{ absolutePath: '/a.md' }], activeTabIndex: 0 }, '/b.md', { preview: true });
+  assert.equal(r.tabs.length, 2);
+  assert.equal(r.tabs[1].absolutePath, '/b.md');
+  assert.equal(r.tabs[1].isPreview, true);
+  assert.equal(r.activeTabIndex, 1);
+});
+
+test('openOrSwitch default (no opts) appends a permanent tab on new path', () => {
+  const r = openOrSwitch({ tabs: [{ absolutePath: '/a.md' }], activeTabIndex: 0 }, '/b.md');
+  assert.equal(r.tabs.length, 2);
+  assert.ok(!r.tabs[1].isPreview); // either undefined or false — both acceptable
+  assert.equal(r.activeTabIndex, 1);
+});
