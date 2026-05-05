@@ -88,6 +88,10 @@
 
   let lastBrowseHTML = '';
 
+  // Session-only set of expanded folder paths within the active root tree.
+  // Key = path-of-dir-names joined with '/' starting from the root.
+  const expandedDirs = new Set();
+
   function pickActiveBrowseRootId() {
     if (!cfg.roots || !cfg.roots.length) return null;
     const persisted = appState.activeBrowseRoot;
@@ -153,15 +157,37 @@
     return tree;
   }
 
-  function renderTree(node) {
+  function renderTree(node, parentPath = '') {
     const parts = ['<ul class="file-list">'];
     const dirNames = [...node.dirs.keys()].sort();
     for (const name of dirNames) {
-      parts.push(`<li><details><summary>${escapeHTML(name)}/</summary>${renderTree(node.dirs.get(name))}</details></li>`);
+      const dirPath = parentPath ? parentPath + '/' + name : name;
+      const isExpanded = expandedDirs.has(dirPath);
+      const chevron = isExpanded ? '▾' : '▸';
+      const childHTML = isExpanded ? renderTree(node.dirs.get(name), dirPath) : '';
+      parts.push(`
+      <li class="tree-li">
+        <div class="dir-row${isExpanded ? ' expanded' : ''}" data-dir-path="${escapeHTML(dirPath)}">
+          <span class="tree-chevron">${chevron}</span>
+          <span class="tree-icon dir-icon" aria-hidden="true">📁</span>
+          <span class="tree-label">${escapeHTML(name)}</span>
+        </div>
+        ${childHTML}
+      </li>
+    `);
     }
     for (const f of node.files) {
       const basename = f.relativePath.split('/').pop();
-      parts.push(`<li><button type="button" data-path="${escapeHTML(f.absolutePath)}"${currentPath === f.absolutePath ? ' class="active"' : ''}>${escapeHTML(basename)}</button></li>`);
+      const activeCls = currentPath === f.absolutePath ? ' active' : '';
+      parts.push(`
+      <li class="tree-li">
+        <button type="button" class="file-row${activeCls}" data-path="${escapeHTML(f.absolutePath)}">
+          <span class="tree-chevron-spacer"></span>
+          <span class="tree-icon file-icon" aria-hidden="true">·</span>
+          <span class="tree-label">${escapeHTML(basename)}</span>
+        </button>
+      </li>
+    `);
     }
     parts.push('</ul>');
     return parts.join('');
@@ -314,6 +340,16 @@
           appState = await window.docket.getState();
           await renderBrowse();
         }
+      });
+    });
+
+    sections.querySelectorAll('.dir-row').forEach((el) => {
+      el.addEventListener('click', () => {
+        const dirPath = el.dataset.dirPath;
+        if (expandedDirs.has(dirPath)) expandedDirs.delete(dirPath);
+        else expandedDirs.add(dirPath);
+        // Re-render only the browse section to avoid losing other state.
+        renderBrowse();
       });
     });
 
