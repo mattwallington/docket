@@ -17,7 +17,6 @@
   let cfg = await window.docket.getConfig();
   let allFiles = await window.docket.listAllFiles();
   let appState = await window.docket.getState();
-  let tocs = await window.docket.getRootTocs();
   let currentPath = null;
   let pendingOutsideRootBanner = null;
   let currentIsOutsideRoot = false;
@@ -33,7 +32,6 @@
   }
 
   const SECTION_TITLES = {
-    toc: 'Table of Contents',
     favorites: 'Favorites',
     recents: 'Recents',
     browse: 'Files'
@@ -109,7 +107,6 @@
       return;
     }
     const statuses = await window.docket.getRootStatuses();
-    const pinnedReadmes = new Set((tocs || []).map((t) => t.readmePath));
     const activeRootId = pickActiveBrowseRootId();
     const tabs = cfg.roots.map((r) => {
       const cls = r.id === activeRootId ? ' active' : '';
@@ -131,7 +128,7 @@
         : `<span class="chip-warn">permission denied</span>`;
       bodyHTML = `<div class="empty-hint">${escapeHTML(root.path)} ${chip}</div>`;
     } else {
-      const files = allFiles.filter((e) => e.rootId === activeRootId && !pinnedReadmes.has(e.absolutePath))
+      const files = allFiles.filter((e) => e.rootId === activeRootId)
         .slice().sort(compareFiles);
       const cappedBanner = status.capped ? `<div class="cap-warning">⚠ More than 5,000 files — sidebar listing may be incomplete. Content search still covers everything.</div>` : '';
       const tree = buildTree(files);
@@ -180,20 +177,6 @@
     return `<li class="dismissable${draggable ? ' draggable' : ''}"${dragAttr} data-path="${escapeHTML(absolutePath)}">${dragHandle}<button type="button" class="file-btn${activeCls}" data-path="${escapeHTML(absolutePath)}">${escapeHTML(label)}</button>${removeHTML}</li>`;
   }
 
-  function renderTocBody() {
-    if (!tocs || !tocs.length) return null;
-    const parts = [];
-    for (const toc of tocs) {
-      const heading = tocs.length > 1 ? `<div class="sub-heading">${escapeHTML(toc.rootLabel)}</div>` : '';
-      parts.push(heading);
-      parts.push('<ul class="file-list">');
-      const activeCls = currentPath === toc.readmePath ? ' active' : '';
-      parts.push(`<li><button type="button" class="file-btn toc${activeCls}" data-path="${escapeHTML(toc.readmePath)}" data-skip-recents="1">README.md</button></li>`);
-      parts.push('</ul>');
-    }
-    return parts.join('');
-  }
-
   function renderFavoritesBody() {
     const valid = orderedFavorites().filter((f) => allFiles.some((e) => e.absolutePath === f.absolutePath));
     if (!valid.length) return null;
@@ -223,7 +206,6 @@
   }
 
   function renderSectionBody(id) {
-    if (id === 'toc') return renderTocBody();
     if (id === 'favorites') return renderFavoritesBody();
     if (id === 'recents') return renderRecentsBody();
     if (id === 'browse') return renderBrowseBody();
@@ -233,7 +215,7 @@
   function renderSidebar() {
     const order = (appState.sectionOrder && appState.sectionOrder.length)
       ? appState.sectionOrder
-      : ['toc', 'favorites', 'recents', 'browse'];
+      : ['favorites', 'recents', 'browse'];
     const collapsed = appState.collapsedSections || {};
 
     const cards = [];
@@ -1394,7 +1376,6 @@
 
   window.docket.onFileChange(async () => {
     allFiles = await window.docket.listAllFiles();
-    tocs = await window.docket.getRootTocs();
     await renderBrowse();
     if (!currentPath) return;
     const isInAllFiles = allFiles.some((f) => f.absolutePath === currentPath);
@@ -1428,7 +1409,6 @@
   window.docket.onConfigChange(async (newCfg) => {
     cfg = newCfg;
     allFiles = await window.docket.listAllFiles();
-    tocs = await window.docket.getRootTocs();
     // If the currently-shown outside-root file is now inside one of the new
     // roots, drop the outside-root flag and the banner.
     if (currentPath && currentIsOutsideRoot) {
