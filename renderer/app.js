@@ -215,8 +215,8 @@
       parts.push(`
       <li class="tree-li">
         <div class="dir-row${isExpanded ? ' expanded' : ''}" data-dir-path="${escapeHTML(dirPath)}">
-          <svg class="tree-chevron" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
-            <polyline points="6,4 10,8 6,12" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+          <svg class="tree-chevron" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
+            <polyline points="6,3 12,8 6,13" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
           <span class="tree-label">${escapeHTML(name)}</span>
         </div>
@@ -230,7 +230,7 @@
       parts.push(`
       <li class="tree-li">
         <button type="button" class="file-row${activeCls}" data-path="${escapeHTML(f.absolutePath)}">
-          <svg class="tree-icon file-icon" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+          <svg class="tree-icon file-icon" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
             <line x1="3" y1="5" x2="13" y2="5"/>
             <line x1="3" y1="8" x2="13" y2="8"/>
             <line x1="3" y1="11" x2="9" y2="11"/>
