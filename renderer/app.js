@@ -746,6 +746,15 @@
       });
     });
 
+    content.querySelectorAll('.row[data-task-line-index]').forEach((row) => {
+      row.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        const lineIndex = Number(row.dataset.taskLineIndex);
+        const isDone = row.dataset.taskStatus === 'done';
+        showTaskContextMenu(e.clientX, e.clientY, absolutePath, lineIndex, isDone);
+      });
+    });
+
     const bannerAdd = content.querySelector('.outside-root-banner .banner-add');
     const bannerDismiss = content.querySelector('.outside-root-banner .banner-dismiss');
     if (bannerAdd) {
@@ -1023,6 +1032,33 @@
 
   function closeTabContextMenu() {
     if (contextMenuEl) { contextMenuEl.remove(); contextMenuEl = null; }
+  }
+
+  function showTaskContextMenu(x, y, absolutePath, lineIndex, isDone) {
+    closeTabContextMenu();
+    const label = isDone ? 'Mark as pending' : 'Mark as done';
+    const el = document.createElement('div');
+    el.className = 'tab-context-menu';
+    el.style.left = x + 'px';
+    el.style.top = y + 'px';
+    el.innerHTML = `<button type="button" class="ctx-item" data-action="toggle">${escapeHTML(label)}</button>`;
+    document.body.appendChild(el);
+    contextMenuEl = el;
+
+    el.querySelector('.ctx-item').addEventListener('click', async () => {
+      closeTabContextMenu();
+      try {
+        await window.docket.toggleTaskStatus(absolutePath, lineIndex, !isDone);
+        // The file watcher will fire 'change'; the existing onFileChange listener
+        // re-reads the file and re-renders. Visual update is automatic.
+      } catch (err) {
+        console.warn('toggleTaskStatus failed:', err);
+      }
+    });
+
+    setTimeout(() => {
+      document.addEventListener('click', closeTabContextMenu, { once: true });
+    }, 0);
   }
 
   function toggleViewModePopover(anchorBtn) {
@@ -1403,7 +1439,7 @@
       ? `<button type="button" class="task-play" data-task-key="${escapeHTML(taskKey)}" title="Play instructions" aria-label="Play instructions">▶</button>`
       : '';
     const expandableCls = hasInstructions ? ' expandable' : '';
-    return `<li class="row ${cls}${expandableCls}" data-task-key="${escapeHTML(taskKey)}">
+    return `<li class="row ${cls}${expandableCls}" data-task-key="${escapeHTML(taskKey)}" data-task-line-index="${t.lineIndex}" data-task-status="${t.status}">
       <span class="icon">${icon}</span>
       <div class="content">
         <div class="task-head">
