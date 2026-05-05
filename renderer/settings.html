@@ -23,6 +23,11 @@
     .update-btn { background: rgba(255,255,255,0.06); color: var(--fg); border: 1px solid rgba(255,255,255,0.12); border-radius: 5px; padding: 6px 12px; font: inherit; font-size: 12px; cursor: pointer; }
     .update-btn:hover { background: rgba(255,255,255,0.1); }
     .update-status { color: var(--muted); font-size: 12px; }
+    .update-btn.primary { background: var(--done); color: #ffffff; border: 0; }
+    .update-btn.primary:hover:not(:disabled) { filter: brightness(1.1); }
+    .update-btn.primary:disabled { cursor: default; opacity: 0.85; }
+    .update-btn.error { background: #dc2626; color: #ffffff; border: 0; }
+    .update-btn.error:hover:not(:disabled) { filter: brightness(1.1); }
     .pref-toggle { display: block; padding: 6px 0; font-size: 12px; color: var(--fg); cursor: pointer; }
     .pref-toggle input { margin-right: 6px; }
     .pref-row { display: block; padding: 6px 0; font-size: 13px; color: var(--fg); }

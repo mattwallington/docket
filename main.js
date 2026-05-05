@@ -69,6 +69,12 @@ function bringWindowForward() {
   mainWindow.focus();
 }
 
+function broadcastUpdateState(payload) {
+  for (const win of BrowserWindow.getAllWindows()) {
+    if (!win.isDestroyed()) win.webContents.send('docket:update-state', payload);
+  }
+}
+
 let mainWindow = null;
 let watcher = null;
 let fileIndex = new Map();  // rootId -> FileEntry[]
@@ -643,9 +649,7 @@ ipcMain.handle('docket:downloadUpdate', async () => {
   try {
     downloadInFlight = true;
     autoUpdater.downloadUpdate();
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('docket:update-state', { status: 'downloading', percent: 0 });
-    }
+    broadcastUpdateState({ status: 'downloading', percent: 0 });
     return { ok: true };
   } catch (e) {
     downloadInFlight = false;
@@ -669,33 +673,24 @@ function setupAutoUpdater() {
     if (process.platform === 'darwin' && app.dock) {
       try { app.dock.setBadge('•'); } catch {}
     }
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('docket:update-state', {
-        status: 'available',
-        version: info.version
-      });
-    }
+    broadcastUpdateState({ status: 'available', version: info.version });
   });
 
   autoUpdater.on('update-not-available', () => {
     if (process.platform === 'darwin' && app.dock) {
       try { app.dock.setBadge(''); } catch {}
     }
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('docket:update-state', { status: 'none' });
-    }
+    broadcastUpdateState({ status: 'none' });
   });
 
   autoUpdater.on('download-progress', (info) => {
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('docket:update-state', {
-        status: 'downloading',
-        percent: info.percent,
-        bytesPerSecond: info.bytesPerSecond,
-        transferred: info.transferred,
-        total: info.total
-      });
-    }
+    broadcastUpdateState({
+      status: 'downloading',
+      percent: info.percent,
+      bytesPerSecond: info.bytesPerSecond,
+      transferred: info.transferred,
+      total: info.total
+    });
   });
 
   autoUpdater.on('update-downloaded', (info) => {
@@ -703,12 +698,7 @@ function setupAutoUpdater() {
     if (process.platform === 'darwin' && app.dock) {
       try { app.dock.setBadge('•'); } catch {}
     }
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('docket:update-state', {
-        status: 'ready',
-        version: info.version
-      });
-    }
+    broadcastUpdateState({ status: 'ready', version: info.version });
   });
 
   autoUpdater.on('error', (err) => {
@@ -717,9 +707,7 @@ function setupAutoUpdater() {
     if (downloadInFlight) {
       downloadInFlight = false;
       try { app.dock.setBadge('!'); } catch {}
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send('docket:update-state', { status: 'error', message: msg });
-      }
+      broadcastUpdateState({ status: 'error', message: msg });
     }
   });
 

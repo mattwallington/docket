@@ -164,6 +164,9 @@
     });
   }
 
+  let localUpdateState = null;
+  let unsubscribeUpdateState = null;
+
   async function renderAbout() {
     const v = await window.docket.getVersion();
     const s = await window.docket.getState();
@@ -177,10 +180,7 @@
       <div class="about-line"><span class="label">Channel</span>${escapeHTML(v.channel)}</div>
       ${v.buildDate ? `<div class="about-line"><span class="label">Build date</span>${escapeHTML(v.buildDate)}</div>` : ''}
       <div class="about-line"><span class="label">Last checked</span>${escapeHTML(lastCheckedText)}</div>
-      <div class="update-row">
-        <button type="button" id="check-updates" class="update-btn">Check for updates…</button>
-        <span id="update-status" class="update-status"></span>
-      </div>
+      <div id="update-action" class="update-row"></div>
       <div class="prefs-block" style="margin-top: 24px;">
         <label class="pref-toggle">
           <input type="checkbox" id="auto-check" ${s.autoCheck ? 'checked' : ''}>
@@ -192,26 +192,103 @@
         </label>
       </div>
     `;
-    const statusEl = document.getElementById('update-status');
-    document.getElementById('check-updates').addEventListener('click', async () => {
-      statusEl.textContent = 'Checking…';
-      const r = await window.docket.checkForUpdates();
-      await window.docket.setLastUpdateCheck(Date.now());
-      if (!r.ok) { statusEl.textContent = 'Error: ' + r.error; return; }
-      if (!r.updateInfo || r.updateInfo.version === v.version) {
-        statusEl.textContent = 'Up to date.';
-      } else {
-        statusEl.textContent = `v${r.updateInfo.version} available`;
-      }
-      // Re-render to update the "Last checked" line
-      renderAbout();
-    });
+
     document.getElementById('auto-check').addEventListener('change', async (e) => {
       await window.docket.setAutoCheck(e.target.checked);
     });
     document.getElementById('allow-prerelease').addEventListener('change', async (e) => {
       await window.docket.setAllowPrerelease(e.target.checked);
     });
+
+    renderUpdateAction(v.version);
+
+    // Subscribe once. Tear down any prior subscription to avoid duplicates.
+    if (unsubscribeUpdateState) { unsubscribeUpdateState(); unsubscribeUpdateState = null; }
+    if (window.docket.onUpdateState) {
+      unsubscribeUpdateState = window.docket.onUpdateState((payload) => {
+        localUpdateState = payload;
+        renderUpdateAction(v.version);
+      });
+    }
+  }
+
+  function renderUpdateAction(currentVersion) {
+    const el = document.getElementById('update-action');
+    if (!el) return;
+    const s = localUpdateState;
+    let html;
+
+    if (!s || s.status === 'none' || !s.status) {
+      // Default state — show the manual check button
+      html = `
+        <button type="button" id="check-updates" class="update-btn">Check for updates…</button>
+        <span id="update-status" class="update-status"></span>
+      `;
+    } else if (s.status === 'available') {
+      html = `
+        <button type="button" id="action-download" class="update-btn primary">↓ Download v${escapeHTML(s.version)}</button>
+      `;
+    } else if (s.status === 'downloading') {
+      const pct = typeof s.percent === 'number' ? Math.round(s.percent) : null;
+      const speed = typeof s.bytesPerSecond === 'number' ? formatBytesPerSec(s.bytesPerSecond) : null;
+      let label = '↓ Downloading…';
+      if (pct !== null && speed) label = `↓ Downloading ${pct}% (${escapeHTML(speed)})`;
+      else if (pct !== null) label = `↓ Downloading ${pct}%`;
+      html = `<button type="button" class="update-btn primary" disabled>${label}</button>`;
+    } else if (s.status === 'ready') {
+      html = `
+        <button type="button" id="action-install" class="update-btn primary">↻ Restart to install v${escapeHTML(s.version)}</button>
+      `;
+    } else if (s.status === 'error') {
+      html = `
+        <button type="button" id="action-retry" class="update-btn error">⚠ Download failed — Retry</button>
+      `;
+    } else {
+      html = `
+        <button type="button" id="check-updates" class="update-btn">Check for updates…</button>
+        <span id="update-status" class="update-status"></span>
+      `;
+    }
+
+    el.innerHTML = html;
+
+    // Wire whichever buttons are present
+    const checkBtn = document.getElementById('check-updates');
+    if (checkBtn) {
+      const statusEl = document.getElementById('update-status');
+      checkBtn.addEventListener('click', async () => {
+        if (statusEl) statusEl.textContent = 'Checking…';
+        const r = await window.docket.checkForUpdates();
+        if (!r.ok) {
+          if (statusEl) statusEl.textContent = 'Error: ' + r.error;
+          return;
+        }
+        if (!r.updateInfo || r.updateInfo.version === currentVersion) {
+          if (statusEl) statusEl.textContent = 'Up to date.';
+        }
+        // If an update IS available, the main process emits an `update-available`
+        // event whose listener calls broadcastUpdateState — our subscription above
+        // catches it and re-renders this area as a Download button.
+      });
+    }
+    const downloadBtn = document.getElementById('action-download') || document.getElementById('action-retry');
+    if (downloadBtn) {
+      downloadBtn.addEventListener('click', async () => {
+        await window.docket.downloadUpdate();
+      });
+    }
+    const installBtn = document.getElementById('action-install');
+    if (installBtn) {
+      installBtn.addEventListener('click', async () => {
+        await window.docket.installUpdate();
+      });
+    }
+  }
+
+  function formatBytesPerSec(bps) {
+    if (!bps || bps < 1024) return `${Math.round(bps || 0)} B/s`;
+    if (bps < 1024 * 1024) return `${(bps / 1024).toFixed(1)} KB/s`;
+    return `${(bps / (1024 * 1024)).toFixed(1)} MB/s`;
   }
 
   function formatRelative(ms) {
