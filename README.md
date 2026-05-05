@@ -28,7 +28,7 @@ To browse another directory (e.g. `~/docs/`), open Preferences (`⌘,`) → Root
 All config lives in `~/.docket/`:
 
 - `docket.json` — configured roots, theme preference.
-- `state.json` — recents, favorites, tabs, sidebar layout, default view, update prefs.
+- `state.json` — recents, favorites, tabs, sidebar layout, sidebar width, sort, default view, update prefs.
 - `projects/` — default root; add your own or replace with other roots via Preferences.
 
 ## Keyboard
@@ -72,6 +72,24 @@ The Files section is a tabbed file browser. Each tab is a configured root. Click
 Single-click a file in the sidebar to open it as a *preview* tab (rendered in italic in the tab strip). Single-clicking a different file replaces the preview tab's contents. Double-click to open as a permanent tab (italic clears). To pin the current preview tab as permanent, right-click it and pick `Keep Open`.
 
 CLI / Finder / `Open with Docket` always open as permanent tabs.
+
+## Editing checklists from the UI
+
+Right-click any task row in a checklist to toggle its done/pending status. Docket writes the change directly back to the source `.md` file using an atomic temp+rename, so a crash mid-write can't corrupt your file. The file watcher picks up the change and the view re-renders within a second.
+
+Caveat: if you're editing the same file in another editor with unsaved changes, your editor's changes will be lost when docket writes — same as `state.json` writes today.
+
+## Sidebar sort
+
+Hover the **Files** section header to reveal a `⇅` icon — click it for a sort popover. Three primary criteria (Name, Last modified, Created) plus a Reverse Order toggle below. The choice persists in `~/.docket/state.json`. The same options are also available via `View → Sort Files By` in the menu bar.
+
+## Resizing the sidebar
+
+Drag the right edge of the sidebar to resize. Width is clamped to 200–600px and persists across launches.
+
+## File tree
+
+The Files section renders a VS Code-style tree: chevron-collapsible folders, indented children, and a small line-glyph icon next to each file. Click a folder to expand or collapse it (state is session-only — closing the app forgets it). Click a file to open it as a preview tab; double-click for a permanent tab.
 
 ## Status bar
 
