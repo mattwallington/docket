@@ -27,6 +27,50 @@
   let lastResolvedViewMode = null;
   let viewModePopoverEl = null;
 
+  const sidebar = document.getElementById('sidebar');
+  const sidebarResize = document.getElementById('sidebar-resize');
+
+  // Apply persisted width on launch
+  if (sidebar && typeof appState.sidebarWidth === 'number') {
+    sidebar.style.width = appState.sidebarWidth + 'px';
+  }
+
+  // Drag-to-resize
+  if (sidebarResize) {
+    let dragStartX = 0;
+    let dragStartWidth = 0;
+    let dragging = false;
+    let saveTimer = null;
+
+    sidebarResize.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      dragging = true;
+      dragStartX = e.clientX;
+      dragStartWidth = sidebar.getBoundingClientRect().width;
+      sidebarResize.classList.add('dragging');
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!dragging) return;
+      const delta = e.clientX - dragStartX;
+      const next = Math.max(200, Math.min(600, dragStartWidth + delta));
+      sidebar.style.width = next + 'px';
+      if (saveTimer) clearTimeout(saveTimer);
+      saveTimer = setTimeout(() => {
+        window.docket.setSidebarWidth(next).catch(() => {});
+      }, 150);
+    });
+
+    window.addEventListener('mouseup', () => {
+      if (!dragging) return;
+      dragging = false;
+      sidebarResize.classList.remove('dragging');
+      const final = Math.round(sidebar.getBoundingClientRect().width);
+      if (saveTimer) clearTimeout(saveTimer);
+      window.docket.setSidebarWidth(final).catch(() => {});
+    });
+  }
+
   function isFavorite(absolutePath) {
     return (appState.favorites || []).some((f) => f.absolutePath === absolutePath);
   }

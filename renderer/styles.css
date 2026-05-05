@@ -9,9 +9,9 @@
 body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   background: var(--bg); color: var(--text); }
 .app { display: flex; min-height: 100vh; }
-.sidebar { width: var(--sidebar-w); border-right: 1px solid var(--border); background: var(--card);
+.sidebar { width: 280px; border-right: 1px solid var(--border); background: var(--card);
   padding: 16px; overflow-y: auto; position: sticky; top: 0; height: 100vh; flex-shrink: 0; transition: margin-left 0.2s ease; }
-.sidebar.hidden { margin-left: calc(-1 * var(--sidebar-w)); }
+.sidebar.hidden { margin-left: -280px; }
 .sidebar-head { font-size: 11px; text-transform: uppercase; color: var(--muted); letter-spacing: 0.8px; margin-bottom: 12px; font-weight: 600; }
 .sidebar-item { display: block; width: 100%; text-align: left; padding: 10px 12px; border-radius: 8px; background: none; border: 1px solid transparent; color: var(--text); cursor: pointer; font: inherit; margin-bottom: 6px; }
 .sidebar-item:hover { background: rgba(255,255,255,0.03); }
@@ -690,3 +690,15 @@ details.root.unavailable summary { opacity: 0.5; cursor: default; }
 .sort-row:hover { background: rgba(255, 255, 255, 0.06); }
 .sort-row-check { width: 12px; color: var(--done); font-size: 11px; }
 .sort-sep { height: 1px; background: var(--border); margin: 4px 0; }
+
+#sidebar-resize {
+  flex: 0 0 auto;
+  width: 4px;
+  background: transparent;
+  cursor: col-resize;
+  user-select: none;
+  position: relative;
+  z-index: 5;
+  transition: background-color 0.1s;
+}
+#sidebar-resize:hover, #sidebar-resize.dragging { background: rgba(123, 147, 255, 0.4); }
