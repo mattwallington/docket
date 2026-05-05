@@ -564,6 +564,8 @@ ipcMain.handle('docket:setActiveTabIndex', async (_e, idx) => await state.setAct
 ipcMain.handle('docket:setAutoCheck', async (_e, v) => await state.setAutoCheck(v));
 ipcMain.handle('docket:setAllowPrerelease', async (_e, v) => await state.setAllowPrerelease(v));
 ipcMain.handle('docket:setLastUpdateCheck', async (_e, v) => await state.setLastUpdateCheck(v));
+ipcMain.handle('docket:setVoiceURI', async (_e, v) => await state.setVoiceURI(v));
+ipcMain.handle('docket:setSpeechRate', async (_e, v) => await state.setSpeechRate(v));
 
 // Returns, per root that has a top-level README.md, the absolute path to
 // that README. Renderer pins it as a 'Table of Contents' sidebar entry.

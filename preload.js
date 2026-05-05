@@ -65,6 +65,8 @@ contextBridge.exposeInMainWorld('docket', {
   setAutoCheck: (v) => ipcRenderer.invoke('docket:setAutoCheck', v),
   setAllowPrerelease: (v) => ipcRenderer.invoke('docket:setAllowPrerelease', v),
   setLastUpdateCheck: (v) => ipcRenderer.invoke('docket:setLastUpdateCheck', v),
+  setVoiceURI: (v) => ipcRenderer.invoke('docket:setVoiceURI', v),
+  setSpeechRate: (v) => ipcRenderer.invoke('docket:setSpeechRate', v),
   revealInFinder: (absolutePath) => ipcRenderer.invoke('docket:revealInFinder', absolutePath),
   downloadUpdate: () => ipcRenderer.invoke('docket:downloadUpdate'),
   installUpdate: () => ipcRenderer.invoke('docket:installUpdate'),

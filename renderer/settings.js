@@ -70,6 +70,15 @@
 
   async function renderAppearance() {
     const s = await window.docket.getState();
+    const voices = await loadVoices();
+    const voiceOptions = ['<option value="">System default</option>']
+      .concat(voices.map((v) => {
+        const sel = s.voiceURI === v.voiceURI ? ' selected' : '';
+        const lang = v.lang ? ` (${v.lang})` : '';
+        return `<option value="${escapeHTML(v.voiceURI)}"${sel}>${escapeHTML(v.name)}${escapeHTML(lang)}</option>`;
+      }))
+      .join('');
+
     panes.appearance.innerHTML = `
       <h2>Appearance</h2>
       <label class="pref-row">Theme:
@@ -87,12 +96,71 @@
         </select>
       </label>
       <p class="pref-hint">Per-document view (including Raw) is set via the view-mode button in the tab strip and lasts for this session only.</p>
+
+      <h3 class="pref-section">Voice playback</h3>
+      <label class="pref-row">Voice:
+        <select id="voice-select">${voiceOptions}</select>
+      </label>
+      <label class="pref-row">Speech rate:
+        <input type="range" id="rate-slider" min="0.5" max="2" step="0.1" value="${s.speechRate}">
+        <span id="rate-display">${s.speechRate.toFixed(1)}x</span>
+      </label>
+      <div class="pref-row">
+        <button type="button" id="voice-test" class="btn">Test voice</button>
+        <span id="voice-test-status" class="pref-hint" style="margin-left: 8px;"></span>
+      </div>
+      <p class="pref-hint">For higher-quality voices, install Apple's premium voices in System Settings → Accessibility → Spoken Content → System Voice → Manage Voices. Ava, Allison, and Evan (Premium) are dramatically better than the defaults.</p>
     `;
+
     panes.appearance.querySelector('#theme-select').addEventListener('change', async (e) => {
       cfg = await window.docket.updateConfig({ theme: e.target.value });
     });
     panes.appearance.querySelector('#default-view-select').addEventListener('change', async (e) => {
       await window.docket.setDefaultView(e.target.value);
+    });
+    panes.appearance.querySelector('#voice-select').addEventListener('change', async (e) => {
+      await window.docket.setVoiceURI(e.target.value || null);
+    });
+    const rateSlider = panes.appearance.querySelector('#rate-slider');
+    const rateDisplay = panes.appearance.querySelector('#rate-display');
+    rateSlider.addEventListener('input', () => {
+      rateDisplay.textContent = `${Number(rateSlider.value).toFixed(1)}x`;
+    });
+    rateSlider.addEventListener('change', async () => {
+      await window.docket.setSpeechRate(Number(rateSlider.value));
+    });
+    panes.appearance.querySelector('#voice-test').addEventListener('click', async () => {
+      const fresh = await window.docket.getState();
+      const sample = 'This is a test of the selected voice and speech rate.';
+      const synth = window.speechSynthesis;
+      synth.cancel();
+      const u = new SpeechSynthesisUtterance(sample);
+      u.rate = fresh.speechRate || 1;
+      if (fresh.voiceURI) {
+        const allVoices = synth.getVoices();
+        const found = allVoices.find((v) => v.voiceURI === fresh.voiceURI);
+        if (found) u.voice = found;
+      }
+      synth.speak(u);
+    });
+  }
+
+  function loadVoices() {
+    return new Promise((resolve) => {
+      const synth = window.speechSynthesis;
+      let voices = synth.getVoices();
+      if (voices.length) { resolve(voices); return; }
+      // Voices may load async; wait once.
+      const handler = () => {
+        synth.removeEventListener('voiceschanged', handler);
+        resolve(synth.getVoices());
+      };
+      synth.addEventListener('voiceschanged', handler);
+      // Fallback timeout in case voiceschanged doesn't fire.
+      setTimeout(() => {
+        synth.removeEventListener('voiceschanged', handler);
+        resolve(synth.getVoices());
+      }, 1000);
     });
   }
 

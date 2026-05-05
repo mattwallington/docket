@@ -654,7 +654,12 @@
         btn.classList.add('playing');
         btn.textContent = '❙❙';
 
+        const synth = window.speechSynthesis;
+        const allVoices = synth.getVoices();
+        const savedVoice = appState.voiceURI ? allVoices.find((v) => v.voiceURI === appState.voiceURI) : null;
         tts.play(text, {
+          rate: appState.speechRate || 1,
+          voice: savedVoice || undefined,
           onBoundary: (charIndex) => highlightWordAt(inner, charIndex),
           onEnd: () => clearActivePlay()
         });

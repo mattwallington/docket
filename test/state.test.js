@@ -306,3 +306,38 @@ test('setTabs accepts isPreview on entries', async () => {
   const s = await state.read();
   assert.equal(s.tabs[0].isPreview, true);
 });
+
+test('defaultState exposes voiceURI=null and speechRate=1', async () => {
+  const s = await state.read();
+  assert.equal(s.voiceURI, null);
+  assert.equal(s.speechRate, 1);
+});
+
+test('setVoiceURI accepts string or null', async () => {
+  await state.setVoiceURI('com.apple.speech.synthesis.voice.ava.premium');
+  let s = await state.read();
+  assert.equal(s.voiceURI, 'com.apple.speech.synthesis.voice.ava.premium');
+  await state.setVoiceURI(null);
+  s = await state.read();
+  assert.equal(s.voiceURI, null);
+});
+
+test('setVoiceURI rejects non-string non-null', async () => {
+  await assert.rejects(() => state.setVoiceURI(42), /Invalid voiceURI/);
+});
+
+test('setSpeechRate clamps and persists', async () => {
+  await state.setSpeechRate(1.5);
+  let s = await state.read();
+  assert.equal(s.speechRate, 1.5);
+  await state.setSpeechRate(5); // clamped to 2
+  s = await state.read();
+  assert.equal(s.speechRate, 2);
+  await state.setSpeechRate(0.1); // clamped to 0.5
+  s = await state.read();
+  assert.equal(s.speechRate, 0.5);
+});
+
+test('setSpeechRate rejects non-numeric', async () => {
+  await assert.rejects(() => state.setSpeechRate('fast'), /Invalid speechRate/);
+});
