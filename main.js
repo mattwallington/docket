@@ -12,6 +12,7 @@ const state = require('./lib/state.js');
 const { walkRoot } = require('./lib/files.js');
 const { searchContent, cancelSearch } = require('./lib/search.js');
 const { resolveOpenRequest } = require('./lib/open-path.js');
+const { toggleCheckboxInBody } = require('./lib/checkbox-toggle.js');
 
 // Files that were passed via CLI / open-file but lie outside all configured
 // roots. We allow readFile() against these for the lifetime of this process.
@@ -560,6 +561,8 @@ ipcMain.handle('docket:removeFavorite', async (_e, p) => {
 ipcMain.handle('docket:setDefaultView', async (_e, v) => await state.setDefaultView(v));
 ipcMain.handle('docket:setActiveBrowseRoot', async (_e, v) => await state.setActiveBrowseRoot(v));
 ipcMain.handle('docket:setSortBy', async (_e, sortBy) => await state.setSortBy(sortBy));
+ipcMain.handle('docket:setSortReverse', async (_e, v) => await state.setSortReverse(v));
+ipcMain.handle('docket:setSidebarWidth', async (_e, v) => await state.setSidebarWidth(v));
 ipcMain.handle('docket:setSearchMode', async (_e, mode) => await state.setSearchMode(mode));
 ipcMain.handle('docket:setDocScale', async (_e, v) => await state.setDocScale(v));
 ipcMain.handle('docket:setSectionOrder', async (_e, order) => await state.setSectionOrder(order));
@@ -572,23 +575,6 @@ ipcMain.handle('docket:setAllowPrerelease', async (_e, v) => await state.setAllo
 ipcMain.handle('docket:setLastUpdateCheck', async (_e, v) => await state.setLastUpdateCheck(v));
 ipcMain.handle('docket:setVoiceURI', async (_e, v) => await state.setVoiceURI(v));
 ipcMain.handle('docket:setSpeechRate', async (_e, v) => await state.setSpeechRate(v));
-
-// Returns, per root that has a top-level README.md, the absolute path to
-// that README. Renderer pins it as a 'Table of Contents' sidebar entry.
-ipcMain.handle('docket:getRootTocs', async () => {
-  const cfg = await config.read();
-  const results = [];
-  for (const root of cfg.roots) {
-    const readmePath = path.join(root.path, 'README.md');
-    try {
-      await fs.access(readmePath);
-      results.push({ rootId: root.id, rootLabel: root.label, readmePath });
-    } catch {
-      // No README; skip
-    }
-  }
-  return results;
-});
 
 ipcMain.handle('docket:getRootStatuses', async () => {
   const out = {};
@@ -610,6 +596,30 @@ ipcMain.handle('docket:readFile', async (_e, absolutePath) => {
     throw new Error('Path outside configured roots');
   }
   return await fs.readFile(resolved, 'utf8');
+});
+
+ipcMain.handle('docket:toggleTaskStatus', async (_e, absolutePath, lineIndex, completed) => {
+  const cfg = await config.read();
+  const resolved = path.resolve(absolutePath);
+  if (!withinAnyRoot(resolved, cfg) && !sessionAllowedPaths.has(resolved)) {
+    throw new Error('Path outside configured roots');
+  }
+  if (!resolved.endsWith('.md') && !resolved.endsWith('.markdown')) {
+    throw new Error('Not a markdown file');
+  }
+  const text = await fs.readFile(resolved, 'utf8');
+  // Split off frontmatter so lineIndex (which counts task lines in the BODY)
+  // matches the parser's count.
+  const fmMatch = text.match(/^---\n[\s\S]*?\n---\n/);
+  const fmPrefix = fmMatch ? fmMatch[0] : '';
+  const body = fmMatch ? text.slice(fmMatch[0].length) : text;
+  const newBody = toggleCheckboxInBody(body, lineIndex, completed);
+  const newText = fmPrefix + newBody;
+  // Atomic write: temp file in same directory + rename
+  const tmpPath = resolved + '.tmp.' + Date.now();
+  await fs.writeFile(tmpPath, newText, 'utf8');
+  await fs.rename(tmpPath, resolved);
+  return { ok: true };
 });
 
 ipcMain.handle('docket:searchContent', async (_e, query) => {
