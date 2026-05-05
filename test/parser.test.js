@@ -170,3 +170,23 @@ test('parseChecklist preserves task.note as concatenated for back-compat', () =>
   const { lead } = parser.parseChecklist(text);
   assert.equal(lead[0].note, 'short note\n\nlonger detail line');
 });
+
+test('parseChecklist emits 0-based lineIndex per task across phases', () => {
+  const text = `# Plan
+- [ ] **A**
+- [x] **B**
+
+## Phase 1
+- [ ] **C**
+
+## Phase 2
+- [ ] **D**
+- [x] **E**
+`;
+  const { lead, phases } = parser.parseChecklist(text);
+  assert.equal(lead[0].lineIndex, 0); // A
+  assert.equal(lead[1].lineIndex, 1); // B
+  assert.equal(phases[0].orphanItems[0].lineIndex, 2); // C
+  assert.equal(phases[1].orphanItems[0].lineIndex, 3); // D
+  assert.equal(phases[1].orphanItems[1].lineIndex, 4); // E
+});
