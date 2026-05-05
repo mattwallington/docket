@@ -490,7 +490,8 @@ details.root.unavailable summary { opacity: 0.5; cursor: default; }
   padding: 0;
 }
 .view-mode-btn:hover { background: rgba(255, 255, 255, 0.06); }
-.view-mode-btn .vm-icon { font-size: 14px; line-height: 1; }
+.view-mode-btn .vm-icon { display: block; color: var(--muted); }
+.view-mode-btn:hover .vm-icon { color: var(--text); }
 
 /* View-mode popover ------------------------------------------------- */
 

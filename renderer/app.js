@@ -216,7 +216,7 @@
       <li class="tree-li">
         <div class="dir-row${isExpanded ? ' expanded' : ''}" data-dir-path="${escapeHTML(dirPath)}">
           <svg class="tree-chevron" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
-            <polyline points="6,3 12,8 6,13" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+            <polyline points="6,5 12,8 6,11" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
           <span class="tree-label">${escapeHTML(name)}</span>
         </div>
@@ -231,9 +231,9 @@
       <li class="tree-li">
         <button type="button" class="file-row${activeCls}" data-path="${escapeHTML(f.absolutePath)}">
           <svg class="tree-icon file-icon" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
-            <line x1="3" y1="5" x2="13" y2="5"/>
-            <line x1="3" y1="8" x2="13" y2="8"/>
-            <line x1="3" y1="11" x2="9" y2="11"/>
+            <line x1="4" y1="5" x2="12" y2="5"/>
+            <line x1="4" y1="8" x2="12" y2="8"/>
+            <line x1="4" y1="11" x2="10" y2="11"/>
           </svg>
           <span class="tree-label">${escapeHTML(basename)}</span>
         </button>
@@ -861,19 +861,16 @@
           <button type="button" id="scale-up" class="scale-btn scale-btn-lg" title="Larger text">A</button>
         </div>
         <button type="button" id="view-mode-btn" class="view-mode-btn" title="View mode">
-          <span class="vm-icon">${viewModeIcon(currentEffectiveViewMode())}</span>
+          <svg class="vm-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/>
+            <circle cx="12" cy="12" r="3"/>
+          </svg>
         </button>
       </div>
     `;
 
     wireTabStrip();
     updateScaleButtons();
-  }
-
-  function viewModeIcon(mode) {
-    if (mode === 'checklist') return '☑';
-    if (mode === 'raw') return '&lt;/&gt;';
-    return '📄'; // markdown
   }
 
   function currentEffectiveViewMode() {
