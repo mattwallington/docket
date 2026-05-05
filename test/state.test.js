@@ -118,15 +118,15 @@ test('defaultState sets searchMode to contents', async () => {
 
 test('defaultState exposes new section fields', async () => {
   const s = await state.read();
-  assert.deepEqual(s.sectionOrder, ['toc', 'favorites', 'recents', 'browse']);
+  assert.deepEqual(s.sectionOrder, ['favorites', 'recents', 'browse']);
   assert.deepEqual(s.collapsedSections, {});
   assert.deepEqual(s.favoritesOrder, []);
 });
 
 test('setSectionOrder persists a valid order', async () => {
-  await state.setSectionOrder(['recents', 'favorites', 'toc', 'browse']);
+  await state.setSectionOrder(['recents', 'favorites', 'browse']);
   const s = await state.read();
-  assert.deepEqual(s.sectionOrder, ['recents', 'favorites', 'toc', 'browse']);
+  assert.deepEqual(s.sectionOrder, ['recents', 'favorites', 'browse']);
 });
 
 test('setSectionOrder rejects unknown section ids', async () => {
@@ -161,15 +161,15 @@ test('setFavoritesOrder rejects non-array input', async () => {
 });
 
 test('setSectionOrder rejects duplicate ids', async () => {
-  await assert.rejects(() => state.setSectionOrder(['toc', 'toc', 'browse', 'favorites']), /Invalid section/);
+  await assert.rejects(() => state.setSectionOrder(['browse', 'browse', 'favorites']), /Invalid section/);
 });
 
 test('setSectionCollapsed preserves other keys when updating one section', async () => {
-  await state.setSectionCollapsed('toc', true);
+  await state.setSectionCollapsed('recents', true);
   await state.setSectionCollapsed('favorites', true);
-  await state.setSectionCollapsed('toc', false);
+  await state.setSectionCollapsed('recents', false);
   const s = await state.read();
-  assert.equal(s.collapsedSections.toc, false);
+  assert.equal(s.collapsedSections.recents, false);
   assert.equal(s.collapsedSections.favorites, true);
 });
 
@@ -340,4 +340,62 @@ test('setSpeechRate clamps and persists', async () => {
 
 test('setSpeechRate rejects non-numeric', async () => {
   await assert.rejects(() => state.setSpeechRate('fast'), /Invalid speechRate/);
+});
+
+test('setSortBy now accepts created', async () => {
+  await state.setSortBy('created');
+  const s = await state.read();
+  assert.equal(s.sortBy, 'created');
+});
+
+test('defaultState exposes sortReverse=false', async () => {
+  const s = await state.read();
+  assert.equal(s.sortReverse, false);
+});
+
+test('setSortReverse persists boolean', async () => {
+  await state.setSortReverse(true);
+  let s = await state.read();
+  assert.equal(s.sortReverse, true);
+  await state.setSortReverse(false);
+  s = await state.read();
+  assert.equal(s.sortReverse, false);
+});
+
+test('setSortReverse coerces to boolean', async () => {
+  await state.setSortReverse(1);
+  const s = await state.read();
+  assert.strictEqual(s.sortReverse, true);
+});
+
+test('defaultState exposes sidebarWidth=280', async () => {
+  const s = await state.read();
+  assert.equal(s.sidebarWidth, 280);
+});
+
+test('setSidebarWidth clamps to [200, 600]', async () => {
+  await state.setSidebarWidth(350);
+  let s = await state.read();
+  assert.equal(s.sidebarWidth, 350);
+  await state.setSidebarWidth(50);
+  s = await state.read();
+  assert.equal(s.sidebarWidth, 200);
+  await state.setSidebarWidth(9999);
+  s = await state.read();
+  assert.equal(s.sidebarWidth, 600);
+});
+
+test('setSidebarWidth rejects non-numeric', async () => {
+  await assert.rejects(() => state.setSidebarWidth('big'), /Invalid sidebarWidth/);
+});
+
+test('VALID_SECTIONS no longer includes toc', () => {
+  assert.equal(state.VALID_SECTIONS.has('toc'), false);
+  assert.equal(state.VALID_SECTIONS.has('favorites'), true);
+});
+
+test('read() silently filters legacy toc entries from sectionOrder', async () => {
+  await state.write({ sectionOrder: ['toc', 'favorites', 'recents', 'browse'] });
+  const s = await state.read();
+  assert.deepEqual(s.sectionOrder, ['favorites', 'recents', 'browse']);
 });
