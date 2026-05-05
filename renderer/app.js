@@ -82,8 +82,12 @@
 
   function compareFiles(a, b) {
     const sortBy = appState.sortBy || 'name';
-    if (sortBy === 'modified') return (b.mtime || 0) - (a.mtime || 0);
-    return a.relativePath.localeCompare(b.relativePath);
+    const reverse = Boolean(appState.sortReverse);
+    let cmp;
+    if (sortBy === 'modified') cmp = (b.mtime || 0) - (a.mtime || 0);
+    else if (sortBy === 'created') cmp = (b.ctime || 0) - (a.ctime || 0);
+    else cmp = a.relativePath.localeCompare(b.relativePath);
+    return reverse ? -cmp : cmp;
   }
 
   let lastBrowseHTML = '';
@@ -252,6 +256,9 @@
       const bodyHTML = renderSectionBody(id);
       if (bodyHTML === null) continue;
       const isCollapsed = Boolean(collapsed[id]);
+      const sortBtn = id === 'browse'
+        ? `<button type="button" class="section-sort-btn" title="Sort files">⇅</button>`
+        : '';
       cards.push(`
         <section class="section-card${isCollapsed ? ' collapsed' : ''}" data-section="${id}" draggable="true">
           <header class="section-card-head">
@@ -259,6 +266,7 @@
               <span class="chevron" aria-hidden="true">▾</span>
               <span class="section-title">${escapeHTML(SECTION_TITLES[id] || id)}</span>
             </button>
+            ${sortBtn}
             <span class="drag-handle" aria-hidden="true" title="Drag to reorder">⋮⋮</span>
           </header>
           <div class="section-card-body">${bodyHTML}</div>
@@ -353,6 +361,13 @@
         else expandedDirs.add(dirPath);
         // Re-render only the browse section to avoid losing other state.
         renderBrowse();
+      });
+    });
+
+    sections.querySelectorAll('.section-sort-btn').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleSortPopover(btn);
       });
     });
 
@@ -1006,6 +1021,67 @@
 
   function closeViewModePopover() {
     if (viewModePopoverEl) { viewModePopoverEl.remove(); viewModePopoverEl = null; }
+  }
+
+  let sortPopoverEl = null;
+
+  function toggleSortPopover(anchorBtn) {
+    if (sortPopoverEl) { closeSortPopover(); return; }
+    const currentSort = appState.sortBy || 'name';
+    const reversed = Boolean(appState.sortReverse);
+    const criteria = [
+      { id: 'name', label: 'Name' },
+      { id: 'modified', label: 'Last modified' },
+      { id: 'created', label: 'Created' }
+    ];
+    const rows = criteria.map((c) => `
+      <button type="button" class="sort-row${c.id === currentSort ? ' active' : ''}" data-sort="${c.id}">
+        <span class="sort-row-check">${c.id === currentSort ? '✓' : ''}</span>
+        <span>${escapeHTML(c.label)}</span>
+      </button>
+    `).join('');
+    const reverseRow = `
+      <div class="sort-sep"></div>
+      <button type="button" class="sort-row" id="sort-reverse-toggle">
+        <span class="sort-row-check">${reversed ? '✓' : ''}</span>
+        <span>Reverse order</span>
+      </button>
+    `;
+
+    const el = document.createElement('div');
+    el.className = 'sort-popover';
+    el.innerHTML = rows + reverseRow;
+    anchorBtn.appendChild(el);
+    sortPopoverEl = el;
+
+    el.querySelectorAll('.sort-row[data-sort]').forEach((row) => {
+      row.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const id = row.dataset.sort;
+        await window.docket.setSortBy(id);
+        appState = await window.docket.getState();
+        await renderBrowse();
+        closeSortPopover();
+      });
+    });
+    const reverseBtn = el.querySelector('#sort-reverse-toggle');
+    if (reverseBtn) {
+      reverseBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        await window.docket.setSortReverse(!appState.sortReverse);
+        appState = await window.docket.getState();
+        await renderBrowse();
+        closeSortPopover();
+      });
+    }
+
+    setTimeout(() => {
+      document.addEventListener('click', closeSortPopover, { once: true });
+    }, 0);
+  }
+
+  function closeSortPopover() {
+    if (sortPopoverEl) { sortPopoverEl.remove(); sortPopoverEl = null; }
   }
 
   function showRootTabContextMenu(x, y, rootId) {

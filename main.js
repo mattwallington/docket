@@ -484,7 +484,15 @@ async function buildAppMenu() {
           label: 'Sort Files By',
           submenu: [
             { label: 'Name', type: 'radio', checked: currentSort === 'name', click: () => setSortByFromMenu('name') },
-            { label: 'Last Modified', type: 'radio', checked: currentSort === 'modified', click: () => setSortByFromMenu('modified') }
+            { label: 'Last Modified', type: 'radio', checked: currentSort === 'modified', click: () => setSortByFromMenu('modified') },
+            { label: 'Created', type: 'radio', checked: currentSort === 'created', click: () => setSortByFromMenu('created') },
+            { type: 'separator' },
+            { label: 'Reverse Order', type: 'checkbox', checked: Boolean(currentState.sortReverse), click: async () => {
+              await state.setSortReverse(!Boolean(currentState.sortReverse));
+              if (mainWindow && !mainWindow.isDestroyed()) {
+                mainWindow.webContents.send('docket:sort-by-changed', currentState.sortBy || 'name');
+              }
+            }}
           ]
         },
         { type: 'separator' },

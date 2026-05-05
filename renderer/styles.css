@@ -650,3 +650,43 @@ details.root.unavailable summary { opacity: 0.5; cursor: default; }
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* ---- Sort button + popover ---- */
+.section-sort-btn {
+  position: relative;
+  flex: 0 0 auto;
+  width: 22px; height: 22px;
+  background: transparent; border: 0;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 13px; line-height: 1;
+  padding: 0; border-radius: 4px;
+  display: inline-flex; align-items: center; justify-content: center;
+  opacity: 0;
+}
+.section-card-head:hover .section-sort-btn { opacity: 0.6; }
+.section-sort-btn:hover { opacity: 1 !important; color: var(--text); background: rgba(255, 255, 255, 0.06); }
+
+.sort-popover {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 0;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+  z-index: 1000;
+  min-width: 160px;
+}
+.sort-row {
+  display: flex; align-items: center; gap: 8px;
+  width: 100%;
+  background: transparent; border: 0;
+  color: var(--text); font: inherit; font-size: 12px;
+  padding: 6px 10px;
+  text-align: left; cursor: pointer;
+}
+.sort-row:hover { background: rgba(255, 255, 255, 0.06); }
+.sort-row-check { width: 12px; color: var(--done); font-size: 11px; }
+.sort-sep { height: 1px; background: var(--border); margin: 4px 0; }
