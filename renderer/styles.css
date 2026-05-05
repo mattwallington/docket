@@ -603,7 +603,8 @@ details.root.unavailable summary { opacity: 0.5; cursor: default; }
   margin: 0;
 }
 
-.dir-row, .file-row {
+.tree-li .dir-row,
+.tree-li .file-row {
   display: flex;
   align-items: center;
   gap: 4px;
@@ -622,8 +623,9 @@ details.root.unavailable summary { opacity: 0.5; cursor: default; }
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.dir-row:hover, .file-row:hover { background: rgba(255, 255, 255, 0.05); }
-.file-row.active { background: rgba(123, 147, 255, 0.18); }
+.tree-li .dir-row:hover,
+.tree-li .file-row:hover { background: rgba(255, 255, 255, 0.05); }
+.tree-li .file-row.active { background: rgba(123, 147, 255, 0.18); }
 
 .tree-chevron {
   width: 16px; height: 16px;
