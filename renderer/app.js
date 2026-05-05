@@ -211,12 +211,13 @@
     for (const name of dirNames) {
       const dirPath = parentPath ? parentPath + '/' + name : name;
       const isExpanded = expandedDirs.has(dirPath);
-      const chevron = isExpanded ? '▾' : '▸';
       const childHTML = isExpanded ? renderTree(node.dirs.get(name), dirPath) : '';
       parts.push(`
       <li class="tree-li">
         <div class="dir-row${isExpanded ? ' expanded' : ''}" data-dir-path="${escapeHTML(dirPath)}">
-          <span class="tree-chevron">${chevron}</span>
+          <svg class="tree-chevron" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+            <polyline points="6,4 10,8 6,12" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
           <span class="tree-label">${escapeHTML(name)}</span>
         </div>
         ${childHTML}

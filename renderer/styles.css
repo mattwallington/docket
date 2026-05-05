@@ -126,7 +126,7 @@ ul.task-list { list-style: none; padding: 0; margin: 0; }
   padding: 8px 12px 4px;
 }
 .file-list { list-style: none; padding: 4px 6px; margin: 0; }
-.file-list li + li { margin-top: 1px; }
+.file-list li + li { margin-top: 0; }
 .file-list li button {
   display: block;
   width: 100%;
@@ -608,14 +608,14 @@ details.root.unavailable summary { opacity: 0.5; cursor: default; }
   align-items: center;
   gap: 4px;
   width: 100%;
-  padding: 1px 6px 1px 4px;
+  padding: 0 6px 0 4px;
   border-radius: 3px;
   background: transparent;
   border: 0;
   color: var(--text);
   font: inherit;
   font-size: 12px;
-  line-height: 1.4;
+  line-height: 22px;
   cursor: pointer;
   text-align: left;
   white-space: nowrap;
@@ -626,13 +626,14 @@ details.root.unavailable summary { opacity: 0.5; cursor: default; }
 .file-row.active { background: rgba(123, 147, 255, 0.18); }
 
 .tree-chevron {
-  width: 16px; flex-shrink: 0;
-  font-size: 11px; line-height: 1;
+  width: 16px; height: 14px;
+  flex-shrink: 0;
   color: var(--muted);
-  text-align: center;
-  transition: transform 0.1s;
+  opacity: 0.85;
+  transition: transform 0.15s ease;
   user-select: none;
 }
+.dir-row.expanded .tree-chevron { transform: rotate(90deg); }
 .tree-icon {
   width: 16px; height: 14px;
   flex-shrink: 0;
