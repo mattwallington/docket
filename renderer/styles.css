@@ -203,8 +203,7 @@ details.root > summary {
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
-details > summary { cursor: pointer; }
-details summary::-webkit-details-marker { display: none; }
+
 .chip-warn {
   display: inline-block;
   background: rgba(235, 168, 80, 0.15);
@@ -598,7 +597,6 @@ details.root.unavailable summary { opacity: 0.5; cursor: default; }
 .section-card-body .file-list .file-list {
   margin-left: 14px;
   padding-left: 0;
-  border-left: 1px solid rgba(255, 255, 255, 0.10);
 }
 .tree-li {
   list-style: none;
@@ -610,14 +608,14 @@ details.root.unavailable summary { opacity: 0.5; cursor: default; }
   align-items: center;
   gap: 4px;
   width: 100%;
-  padding: 2px 6px 2px 4px;
+  padding: 1px 6px 1px 4px;
   border-radius: 3px;
   background: transparent;
   border: 0;
   color: var(--text);
   font: inherit;
   font-size: 12px;
-  line-height: 1.5;
+  line-height: 1.7;
   cursor: pointer;
   text-align: left;
   white-space: nowrap;
@@ -640,13 +638,13 @@ details.root.unavailable summary { opacity: 0.5; cursor: default; }
   display: inline-block;
 }
 .tree-icon {
-  width: 14px; flex-shrink: 0;
-  font-size: 11px;
-  text-align: center;
-  opacity: 0.85;
+  width: 13px; height: 13px;
+  flex-shrink: 0;
+  color: var(--muted);
+  opacity: 0.7;
 }
-.dir-icon { font-size: 11px; }
-.file-icon { color: var(--muted); font-weight: 700; }
+.tree-icon line { stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; }
+.file-row.active .tree-icon { opacity: 0.95; }
 .tree-label {
   flex: 1 1 auto;
   overflow: hidden;

@@ -169,7 +169,6 @@
       <li class="tree-li">
         <div class="dir-row${isExpanded ? ' expanded' : ''}" data-dir-path="${escapeHTML(dirPath)}">
           <span class="tree-chevron">${chevron}</span>
-          <span class="tree-icon dir-icon" aria-hidden="true">📁</span>
           <span class="tree-label">${escapeHTML(name)}</span>
         </div>
         ${childHTML}
@@ -183,7 +182,11 @@
       <li class="tree-li">
         <button type="button" class="file-row${activeCls}" data-path="${escapeHTML(f.absolutePath)}">
           <span class="tree-chevron-spacer"></span>
-          <span class="tree-icon file-icon" aria-hidden="true">·</span>
+          <svg class="tree-icon file-icon" viewBox="0 0 16 16" width="13" height="13" aria-hidden="true">
+            <line x1="3" y1="5" x2="13" y2="5"/>
+            <line x1="3" y1="8" x2="13" y2="8"/>
+            <line x1="3" y1="11" x2="9" y2="11"/>
+          </svg>
           <span class="tree-label">${escapeHTML(basename)}</span>
         </button>
       </li>
