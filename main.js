@@ -200,6 +200,15 @@ async function saveWindowState(win) {
   try { await state.setWindowState(ws); } catch {}
 }
 
+function saveWindowStateSync(win) {
+  if (!win || win.isDestroyed()) return;
+  const [x, y] = win.getPosition();
+  const [width, height] = win.getSize();
+  const display = screen.getDisplayMatching({ x, y, width, height });
+  const ws = { x, y, width, height, displayId: display.id, displayBounds: display.bounds };
+  try { state.setWindowStateSync(ws); } catch {}
+}
+
 function createMainWindow() {
   const securityCheck = process.env.DOCKET_SECURITY_CHECK === '1';
   const goldenPath = process.env.DOCKET_GOLDEN_PATH === '1';
@@ -242,7 +251,7 @@ function createMainWindow() {
   if (!headless) {
     mainWindow.on('move', () => scheduleSaveWindowState(mainWindow));
     mainWindow.on('resize', () => scheduleSaveWindowState(mainWindow));
-    mainWindow.on('close', () => { saveWindowState(mainWindow); });
+    mainWindow.on('close', () => { saveWindowStateSync(mainWindow); });
   }
 
   if (securityCheck) runSecurityCheckAndExit();
@@ -790,6 +799,10 @@ app.whenReady().then(async () => {
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createMainWindow();
   });
+});
+
+app.on('before-quit', () => {
+  saveWindowStateSync(mainWindow);
 });
 
 app.on('window-all-closed', () => {
