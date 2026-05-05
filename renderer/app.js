@@ -229,8 +229,7 @@
       parts.push(`
       <li class="tree-li">
         <button type="button" class="file-row${activeCls}" data-path="${escapeHTML(f.absolutePath)}">
-          <span class="tree-chevron-spacer"></span>
-          <svg class="tree-icon file-icon" viewBox="0 0 16 16" width="13" height="13" aria-hidden="true">
+          <svg class="tree-icon file-icon" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
             <line x1="3" y1="5" x2="13" y2="5"/>
             <line x1="3" y1="8" x2="13" y2="8"/>
             <line x1="3" y1="11" x2="9" y2="11"/>

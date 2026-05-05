@@ -10,7 +10,7 @@ body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sa
   background: var(--bg); color: var(--text); }
 .app { display: flex; min-height: 100vh; }
 .sidebar { width: 280px; border-right: 1px solid var(--border); background: var(--card);
-  padding: 16px; overflow-y: auto; position: sticky; top: 0; height: 100vh; flex-shrink: 0; transition: margin-left 0.2s ease; }
+  padding: 8px 4px; overflow-y: auto; position: sticky; top: 0; height: 100vh; flex-shrink: 0; transition: margin-left 0.2s ease; }
 .sidebar.hidden { margin-left: -280px; }
 .sidebar-head { font-size: 11px; text-transform: uppercase; color: var(--muted); letter-spacing: 0.8px; margin-bottom: 12px; font-weight: 600; }
 .sidebar-item { display: block; width: 100%; text-align: left; padding: 10px 12px; border-radius: 8px; background: none; border: 1px solid transparent; color: var(--text); cursor: pointer; font: inherit; margin-bottom: 6px; }
@@ -252,7 +252,7 @@ details.root.unavailable summary { opacity: 0.5; cursor: default; }
 }
 .outside-root-banner button:hover { background: rgba(255,255,255,0.10); }
 
-#sidebar-sections { display: flex; flex-direction: column; gap: 8px; padding: 8px 6px; }
+#sidebar-sections { display: flex; flex-direction: column; gap: 8px; padding: 4px 0; }
 
 .section-card {
   background: rgba(255, 255, 255, 0.025);
@@ -293,7 +293,7 @@ details.root.unavailable summary { opacity: 0.5; cursor: default; }
 .drag-handle:active { cursor: grabbing; }
 
 .section-card-body { padding: 4px 0 6px; }
-.section-card-body .file-list { padding: 0 6px; }
+.section-card-body .file-list { padding: 0; }
 .section-card-body .sub-heading {
   font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em;
   color: var(--muted); padding: 4px 12px 2px;
@@ -615,7 +615,7 @@ details.root.unavailable summary { opacity: 0.5; cursor: default; }
   color: var(--text);
   font: inherit;
   font-size: 12px;
-  line-height: 1.7;
+  line-height: 1.4;
   cursor: pointer;
   text-align: left;
   white-space: nowrap;
@@ -626,19 +626,15 @@ details.root.unavailable summary { opacity: 0.5; cursor: default; }
 .file-row.active { background: rgba(123, 147, 255, 0.18); }
 
 .tree-chevron {
-  width: 12px; flex-shrink: 0;
-  font-size: 10px; line-height: 1;
+  width: 16px; flex-shrink: 0;
+  font-size: 11px; line-height: 1;
   color: var(--muted);
   text-align: center;
   transition: transform 0.1s;
   user-select: none;
 }
-.tree-chevron-spacer {
-  width: 12px; flex-shrink: 0;
-  display: inline-block;
-}
 .tree-icon {
-  width: 13px; height: 13px;
+  width: 16px; height: 14px;
   flex-shrink: 0;
   color: var(--muted);
   opacity: 0.7;
