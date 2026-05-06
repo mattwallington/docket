@@ -559,6 +559,13 @@ details.root.unavailable summary { opacity: 0.5; cursor: default; }
 }
 .file-tab.dragging { opacity: 0.4; }
 .file-tab.drop-target { box-shadow: -2px 0 0 var(--done) inset; }
+.file-tab.editing {
+  background: rgba(123, 147, 255, 0.12);
+  border-color: rgba(123, 147, 255, 0.5);
+  color: var(--text);
+  outline: none;
+  cursor: text;
+}
 .file-tab-add {
   flex: 0 0 auto;
   width: 22px; padding: 4px 0;

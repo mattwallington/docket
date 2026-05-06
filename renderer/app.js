@@ -370,6 +370,7 @@
     // File-browser tab clicks (NEW)
     sections.querySelectorAll('.file-tab').forEach((el) => {
       el.addEventListener('click', async () => {
+        if (el.classList.contains('editing')) return;
         const rootId = el.dataset.rootId;
         if (rootId === appState.activeBrowseRoot) return;
         await window.docket.setActiveBrowseRoot(rootId);
@@ -1161,6 +1162,49 @@
     if (sortPopoverEl) { sortPopoverEl.remove(); sortPopoverEl = null; }
   }
 
+  function startRootTabRename(rootId) {
+    const root = cfg.roots.find((r) => r.id === rootId);
+    if (!root) return;
+    const tabEl = document.querySelector(`.file-tab[data-root-id="${CSS.escape(rootId)}"]`);
+    if (!tabEl) return;
+    const original = root.label;
+    tabEl.contentEditable = 'true';
+    tabEl.draggable = false;
+    tabEl.classList.add('editing');
+    tabEl.focus();
+    const range = document.createRange();
+    range.selectNodeContents(tabEl);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+
+    let done = false;
+    const finish = async (commit) => {
+      if (done) return;
+      done = true;
+      tabEl.contentEditable = 'false';
+      tabEl.draggable = true;
+      tabEl.classList.remove('editing');
+      tabEl.removeEventListener('keydown', onKey);
+      tabEl.removeEventListener('blur', onBlur);
+      const next = (tabEl.textContent || '').trim();
+      if (!commit || !next || next === original) {
+        tabEl.textContent = original;
+        return;
+      }
+      const updated = cfg.roots.map((r) => r.id === rootId ? { ...r, label: next } : r);
+      cfg = await window.docket.updateConfig({ roots: updated });
+      await renderBrowse();
+    };
+    const onKey = (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); finish(true); }
+      else if (e.key === 'Escape') { e.preventDefault(); finish(false); }
+    };
+    const onBlur = () => finish(true);
+    tabEl.addEventListener('keydown', onKey);
+    tabEl.addEventListener('blur', onBlur);
+  }
+
   function showRootTabContextMenu(x, y, rootId) {
     closeTabContextMenu();
     const root = cfg.roots.find((r) => r.id === rootId);
@@ -1190,13 +1234,7 @@
         const action = btn.dataset.action;
         closeTabContextMenu();
         if (action === 'rename') {
-          const next = prompt('Rename root', root.label);
-          if (next === null) return;
-          const trimmed = next.trim();
-          if (!trimmed) return;
-          const updated = cfg.roots.map((r) => r.id === rootId ? { ...r, label: trimmed } : r);
-          cfg = await window.docket.updateConfig({ roots: updated });
-          await renderBrowse();
+          startRootTabRename(rootId);
         } else if (action === 'remove') {
           if (cfg.roots.length === 1) {
             alert('At least one root is required.');
