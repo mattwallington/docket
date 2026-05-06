@@ -160,29 +160,23 @@ async function onFsEvent(type, absolutePath) {
   }
 }
 
-function sameBounds(a, b) {
-  if (!a || !b) return false;
-  return a.x === b.x && a.y === b.y && a.width === b.width && a.height === b.height;
-}
-
 function resolveInitialWindowPlacement(savedWindowState) {
   // Defaults: centered on primary display, 1200x800.
   const fallback = { width: 1200, height: 800 };
   if (!savedWindowState) return fallback;
-  const { x, y, width, height, displayId, displayBounds } = savedWindowState;
+  const { x, y, width, height } = savedWindowState;
   if (![x, y, width, height].every((n) => Number.isFinite(n))) return fallback;
-  const displays = screen.getAllDisplays();
-  const target = displays.find((d) => d.id === displayId);
-  if (!target) return fallback; // monitor gone
-  if (!sameBounds(target.bounds, displayBounds)) return fallback; // monitor rearranged
-  // Verify the saved rect actually overlaps the display's work area — guards
-  // against edge cases like a resolution change keeping bounds but moving
-  // the dock.
-  const rect = { x, y, width, height };
-  const visible = Math.max(0, Math.min(rect.x + rect.width, target.bounds.x + target.bounds.width) - Math.max(rect.x, target.bounds.x))
-                * Math.max(0, Math.min(rect.y + rect.height, target.bounds.y + target.bounds.height) - Math.max(rect.y, target.bounds.y));
-  if (visible < (rect.width * rect.height) * 0.5) return fallback;
-  return { x, y, width, height };
+  // Accept the saved rect if at least half its area still falls on some
+  // current display. macOS can reassign display IDs across logins and
+  // report subtly different bounds (HiDPI scaling, dock changes), so we
+  // don't gate on identity — only on whether the user could still see it.
+  const area = width * height;
+  for (const d of screen.getAllDisplays()) {
+    const overlap = Math.max(0, Math.min(x + width, d.bounds.x + d.bounds.width) - Math.max(x, d.bounds.x))
+                  * Math.max(0, Math.min(y + height, d.bounds.y + d.bounds.height) - Math.max(y, d.bounds.y));
+    if (overlap >= area * 0.5) return { x, y, width, height };
+  }
+  return fallback;
 }
 
 let saveWindowStateTimer = null;
